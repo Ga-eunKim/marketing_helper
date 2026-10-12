@@ -1,4 +1,4 @@
-"""data/ 디렉터리의 JSON 파일 기반 간이 저장소 (노트, 실행 이력, 리포트, 공유 링크)."""
+"""data/ 디렉터리의 JSON 파일 기반 간이 저장소 (DS-LASSO 실행 이력, Trends 캐시)."""
 import json
 import threading
 from pathlib import Path

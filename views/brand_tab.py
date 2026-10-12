@@ -1,4 +1,4 @@
-"""⑤ 브랜드 및 소비자 영향 — YouTube 댓글 수집 + 텍스트 분석."""
+"""브랜드 및 소비자 영향 — YouTube 댓글 수집 + 텍스트 분석."""
 from __future__ import annotations
 
 from datetime import date
@@ -10,7 +10,8 @@ import streamlit as st
 from core import comments as cm
 from core import text_analysis as ta
 from core.charts import SLOT_COLORS, style
-from views.common import comments_cached, connected_slots, kw_list, put_report, slot_name
+from core import cached
+from views.common import connected_slots, kw_list, slot_name
 
 INDICATORS = [("purchase", "구매 의향"), ("positive", "브랜드 선호 (긍정)"), ("message", "광고 메시지 연상")]
 
@@ -26,9 +27,12 @@ def _lexicon_editor() -> dict:
 
 
 def render():
-    st.subheader("브랜드·소비자 반응 (YouTube 댓글 텍스트 분석)")
+    st.markdown("#### 브랜드·소비자 반응 (YouTube 댓글 텍스트 분석)")
     slots = connected_slots()
-    yt = [(s, m) for s, m in slots if m["platform"] == "YouTube"]
+    yt = [(s, m) for s, m in slots if m["platform"] == "YouTube" and m.get("kind") != "channel"]
+    for s, m in slots:
+        if m.get("kind") == "channel":
+            st.caption(f"ℹ️ {slot_name(s, m)}: 채널 URL로 등록되어 있어 댓글 분석에서 제외됩니다 (영상 URL을 넣으면 분석됩니다).")
     for s, m in slots:
         if m["platform"] != "YouTube":
             st.caption(f"ℹ️ {slot_name(s, m)}: Instagram 댓글 본문은 로그인 없이 수집할 수 없어 분석에서 제외됩니다 (공개 댓글 수 {m.get('comments') or '—'}).")
@@ -39,14 +43,20 @@ def render():
     c1, c2 = st.columns(2)
     limit = c1.slider("슬롯별 최대 수집 댓글 수", 100, 2000, 500, 100, key="cm_limit")
     sort = c2.selectbox("정렬", list(cm.SORTS), key="cm_sort")
-    if st.button("댓글 수집", type="primary", key="cm_run"):
+    if st.button("댓글 새로 수집", type="primary", key="cm_run"):
         for s, m in yt:
             with st.spinner(f"{slot_name(s, m)} 댓글 수집 중…"):
                 try:
-                    st.session_state.comment_data[s["key"]] = comments_cached(m["id"], limit, sort)
+                    st.session_state.comment_data[s["key"]] = cached.comments(m["id"], limit, sort, refresh=True)
                 except cm.CommentError as e:
                     st.session_state.comment_data[s["key"]] = None
                     st.error(f"{slot_name(s, m)}: {e}")
+    else:
+        for s, m in yt:  # 저장된 수집 결과가 있으면 바로 표시 (네트워크 요청 없음)
+            if st.session_state.comment_data.get(s["key"]) is None:
+                hit = cached.comments_if_cached(m["id"], limit, sort)
+                if hit is not None:
+                    st.session_state.comment_data[s["key"]] = hit
 
     st.markdown("**이벤트 영향 제외**")
     e1, e2, e3 = st.columns([1, 1, 2])
@@ -136,7 +146,3 @@ def render():
                                     unsafe_allow_html=True)
             with tabs[-1]:
                 st.dataframe(ta.top_terms(tagged["text"]), hide_index=True)
-
-    put_report("brand", "브랜드·소비자 반응 (YouTube 댓글 텍스트 분석)", figs=[fig] if fig else [],
-               tables=[pivot, meta_df] if not res_df.empty else [meta_df],
-               text="지표 = 해당 표현이 포함된 댓글 비율(사전 기반). 댓글은 자기선택 표본이며 실제 구매·전환과 다를 수 있습니다.")

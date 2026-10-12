@@ -50,6 +50,9 @@ def parse_url(url: str) -> tuple[str, str]:
     if host == "youtu.be":
         vid = u.path.strip("/").split("/")[0]
     elif host.endswith("youtube.com"):
+        ch = re.match(r"^/(@[^/?#]+|channel/UC[\w-]{22})", u.path)
+        if ch:  # 채널 URL (@핸들 또는 /channel/UC…)
+            return "YouTubeChannel", ch.group(1)
         if u.path == "/watch":
             vid = parse_qs(u.query).get("v", [""])[0]
         else:
@@ -67,7 +70,7 @@ def parse_url(url: str) -> tuple[str, str]:
     else:
         raise ConnectorError(
             f"지원하지 않는 도메인입니다: {host}",
-            "YouTube(youtube.com, youtu.be) 또는 Instagram(instagram.com) 주소만 연동할 수 있습니다.",
+            "YouTube 영상·채널(youtube.com, youtu.be) 또는 Instagram(instagram.com) 주소만 연동할 수 있습니다.",
         )
 
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid or ""):
@@ -115,6 +118,9 @@ def fetch_youtube(video_id: str) -> dict:
     o = oe.json()
 
     page = requests.get(watch_url, headers=HEADERS, timeout=TIMEOUT).text
+    if "ytInitialPlayerResponse" not in page:  # 'unusual traffic' 차단 페이지 등
+        raise ConnectorError("YouTube가 일시적으로 요청을 제한했습니다 (비정상 트래픽 감지).",
+                             "몇 분~1시간 뒤 [연동]을 다시 누르세요. 이전에 수집한 값이 있으면 그 값을 계속 사용합니다.")
 
     def grab(key):
         m = re.search(r'"%s":\s*"?([^",}]+)' % key, page)
@@ -123,6 +129,7 @@ def fetch_youtube(video_id: str) -> dict:
     kw = re.search(r'"keywords":\[([^\]]*)\]', page)
     keywords = re.findall(r'"([^"]+)"', kw.group(1)) if kw else []
     cinfo = re.search(r'"contextualInfo":\{"runs":\[\{"text":"([^"]+)"', page)
+    subs = re.search(r'"subscriberCountText":.{0,200}?"simpleText":"(?:구독자\s*)?([\d.,]+\s*[천만억KM]?)', page)
     pub = grab("publishDate") or grab("uploadDate")
     published = pub[:10] if pub else None
 
@@ -138,6 +145,7 @@ def fetch_youtube(video_id: str) -> dict:
         "likes": _num(grab("likeCount")),
         "comments": _abbr_num(cinfo.group(1)) if cinfo else None,  # 댓글 패널 표시값 (축약 수치일 수 있음)
         "keywords": keywords,
+        "followers": _abbr_num(subs.group(1)) if subs else None,  # 구독자 수 (표시값 반올림, 예: 47.8만)
         "thumbnail": o.get("thumbnail_url"),
         "source": "YouTube 공개 페이지 + oEmbed",
         "fetched_at": _now(),
@@ -170,6 +178,7 @@ def _instagram_via_instaloader(shortcode: str) -> dict:
         "likes": p.likes,
         "comments": p.comments,
         "keywords": list(p.caption_hashtags or []),
+        "thumbnail": p.url,
         "source": "Instagram 공개 게시물 (instaloader, 비로그인)",
     }
 
@@ -202,8 +211,29 @@ def _instagram_via_meta(shortcode: str) -> dict:
         "likes": _num(likes.group(1)) if likes else None,
         "comments": _num(comments.group(1)) if comments else None,
         "keywords": re.findall(r"#(\w+)", desc),
+        "thumbnail": metas.get("og:image"),
         "source": "Instagram 공개 페이지 og 메타 (폴백)",
     }
+
+
+def _instagram_followers(username: str | None) -> int | None:
+    """계정 팔로워 수 — instaloader → 프로필 페이지 og 메타 순으로 시도, 실패 시 None (요청 제한이 잦음)."""
+    if not username:
+        return None
+    try:
+        import instaloader
+
+        L = instaloader.Instaloader(quiet=True, max_connection_attempts=1)
+        return instaloader.Profile.from_username(L.context, username).followers
+    except Exception:
+        pass
+    try:
+        r = requests.get(f"https://www.instagram.com/{username}/", headers=HEADERS, timeout=TIMEOUT)
+        m = re.search(r'content="([\d.,]+\s*[KkMm천만]?)\s*(?:Followers|팔로워)', r.text) or \
+            re.search(r'팔로워\s*([\d.,]+\s*[천만]?)', r.text)
+        return _abbr_num(m.group(1)) if m else None
+    except requests.RequestException:
+        return None
 
 
 def fetch_instagram(shortcode: str) -> dict:
@@ -213,6 +243,9 @@ def fetch_instagram(shortcode: str) -> dict:
     except Exception as e:  # 로그인 벽, 429 등 → 메타 태그 폴백
         notes.append(f"instaloader 실패({type(e).__name__}) → og 메타로 대체")
         d = _instagram_via_meta(shortcode)
+    d["followers"] = _instagram_followers(d.get("account"))
+    if d["followers"] is None:
+        notes.append("팔로워 수 수집 실패 (Instagram 요청 제한) — 잠시 후 [연동]으로 재시도")
     if d.get("views") is None:
         notes.append("릴스 조회수는 Instagram 정책상 비로그인으로 제공되지 않아 수집 불가")
     notes.append("댓글 본문은 Instagram 로그인이 필요하여 수집 불가 (댓글 수만 표시)")
@@ -221,10 +254,51 @@ def fetch_instagram(shortcode: str) -> dict:
         "id": shortcode,
         "url": f"https://www.instagram.com/p/{shortcode}/",
         "channel_id": None,
-        "thumbnail": None,
         "fetched_at": _now(),
         "notes": notes,
         **d,
+    }
+
+
+def fetch_youtube_channel(path: str) -> dict:
+    """채널 URL → 채널 정보 (영상 단위 지표 없음). path = '@핸들' 또는 'channel/UC…'."""
+    url = f"https://www.youtube.com/{path}/videos"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+    except requests.RequestException as e:
+        raise ConnectorError(f"YouTube 연결 실패: {e}", "네트워크 연결을 확인한 뒤 다시 시도하세요.")
+    if r.status_code == 404:
+        raise ConnectorError("존재하지 않는 채널입니다.", "채널 주소(@핸들)가 정확한지 확인하세요.")
+    page = r.text
+    cid = re.search(r'"externalId":"(UC[\w-]{22})"', page)
+    if not cid:
+        raise ConnectorError("YouTube 채널 정보를 읽지 못했습니다 (일시 차단 또는 구조 변경).",
+                             "몇 분 뒤 [연동]을 다시 누르세요.")
+
+    def meta(prop):
+        m = re.search(r'<meta property="og:%s" content="([^"]*)"' % prop, page)
+        return html.unescape(m.group(1)) if m else None
+
+    subs = re.search(r"구독자\s*([\d.,]+\s*[천만억]?)명", page)
+    name = meta("title") or path
+    return {
+        "platform": "YouTube",
+        "kind": "channel",
+        "id": cid.group(1),
+        "url": f"https://www.youtube.com/{path}",
+        "title": f"{name} 채널",
+        "account": name,
+        "channel_id": cid.group(1),
+        "published": None,
+        "views": None,
+        "likes": None,
+        "comments": None,
+        "followers": _abbr_num(subs.group(1)) if subs else None,
+        "keywords": [],
+        "thumbnail": meta("image"),
+        "source": "YouTube 채널 페이지",
+        "fetched_at": _now(),
+        "notes": ["채널 URL — 영상 단위 지표(조회수·좋아요·댓글)는 없고, 검색 관심도 그래프의 업로드 점으로만 사용"],
     }
 
 
@@ -232,12 +306,9 @@ def fetch(url: str) -> dict:
     platform, ident = parse_url(url)
     if platform == "YouTube":
         return fetch_youtube(ident)
+    if platform == "YouTubeChannel":
+        return fetch_youtube_channel(ident)
     return fetch_instagram(ident)
-
-
-def default_brand_keyword(meta: dict) -> str:
-    """Trends 기본 키워드: 계정/채널명 (예: 'LG전자', 'lgelectronics_kr' → 원문 유지)."""
-    return (meta.get("account") or "").strip()
 
 
 _PARTICLES = ("은", "는", "이", "가", "을", "를", "의", "에", "도", "로", "와", "과")

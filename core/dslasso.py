@@ -19,6 +19,19 @@ from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 MIN_OBS = 20
+DATE_COLS = ("date", "day", "week", "날짜", "일자", "주")
+
+
+def prepare(raw: pd.DataFrame) -> pd.DataFrame | None:
+    """날짜 열을 찾아 시계열 인덱스로. 날짜 열이 없으면 None."""
+    date_col = next((c for c in raw.columns if c.lower() in DATE_COLS), None)
+    if date_col is None:
+        return None
+    raw = raw.copy()
+    raw[date_col] = pd.to_datetime(raw[date_col], errors="coerce")
+    df = raw.dropna(subset=[date_col]).set_index(date_col).sort_index()
+    df.index.name = "date"
+    return df
 
 
 def precheck(df: pd.DataFrame, target: str, controls: list[str], candidates: list[str]) -> tuple[list[str], list[str]]:

@@ -10,7 +10,7 @@ import pandas as pd
 OUT = Path(__file__).parent
 rng = np.random.default_rng(7)
 
-# 1) DS-LASSO용 주간 데이터 (2024-10 ~ 2026-10, 105주)
+# DS-LASSO용 주간 데이터 (2024-10 ~ 2026-10, 105주)
 weeks = pd.date_range("2024-10-07", "2026-10-05", freq="W-MON")
 n = len(weeks)
 t = np.arange(n)
@@ -30,15 +30,4 @@ pd.DataFrame({
     "시장_전체매출": market.round(0), "자사_캠페인노출": yt_impr.round(0), "자사몰_클릭수": mall_clicks.round(0),
 }).to_csv(OUT / "sample_weekly_model.csv", index=False)
 
-# 2) Google Ads 일별 보고서 형식 (YouTube 캠페인)
-days = pd.date_range("2026-09-16", "2026-10-12")
-impr = rng.integers(180_000, 260_000, len(days))
-views = (impr * rng.uniform(0.18, 0.26, len(days))).astype(int)
-clicks = (impr * rng.uniform(0.004, 0.007, len(days))).astype(int)
-conv = (clicks * rng.uniform(0.03, 0.06, len(days))).round(1)
-pd.DataFrame({
-    "Day": days.strftime("%Y-%m-%d"), "Campaign": "LG전자 구독이득 대세편",
-    "Impr.": impr, "Views": views, "Clicks": clicks, "Cost": (views * rng.uniform(25, 35, len(days))).round(0),
-    "Conversions": conv, "Conv. value": (conv * 59000).round(0), "Currency code": "KRW",
-}).to_csv(OUT / "sample_google_ads.csv", index=False)
 print("written:", list(OUT.glob("*.csv")))

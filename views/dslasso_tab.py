@@ -1,4 +1,4 @@
-"""③ DS-LASSO 증분 효과 분석."""
+"""DS-LASSO 증분 효과 분석."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,9 +7,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from core import dslasso, store
+from core import cached, dslasso, store
 from core.charts import SERIES, style
-from views.common import put_report
 
 SAMPLE = Path(__file__).resolve().parent.parent / "sample_data" / "sample_weekly_model.csv"
 SAMPLE_ROLES = {
@@ -20,7 +19,7 @@ SAMPLE_ROLES = {
 
 
 def _load_data() -> tuple[pd.DataFrame | None, str]:
-    src = st.radio("분석 데이터", ["CSV 업로드", "샘플 데이터 (가상)"], horizontal=True, key="dsl_src")
+    src = st.radio("분석 데이터", ["샘플 데이터 (가상)", "CSV 업로드"], horizontal=True, key="dsl_src")
     if src == "CSV 업로드":
         up = st.file_uploader("주/일 단위 CSV (날짜 열 + 타깃·통제·후보 지표 열)", type=["csv"], key="dsl_up")
         if up is None:
@@ -34,18 +33,6 @@ def _load_data() -> tuple[pd.DataFrame | None, str]:
             return None, ""
     st.caption("⚠️ 샘플은 기능 시연용 **가상 데이터**입니다. 실제 분석에는 고객사 판매·통제변수 데이터를 업로드하세요.")
     return pd.read_csv(SAMPLE), "샘플 (가상 데이터)"
-
-
-def _attach_trends(df: pd.DataFrame) -> pd.DataFrame:
-    if not st.session_state.trends:
-        return df
-    if not st.checkbox("Google Trends 검색 관심도를 후보 변수로 병합", key="dsl_trends"):
-        return df
-    t, _ = st.session_state.trends
-    t = t.rename(columns=lambda c: f"검색관심도_{c}").sort_index()
-    merged = pd.merge_asof(df.sort_index(), t, left_index=True, right_index=True, direction="backward")
-    st.caption("각 관측 시점 직전의 Trends 값으로 맞춤(as-of 병합). Trends 기간 밖 행은 결측 → 분석에서 제외됩니다.")
-    return merged
 
 
 def forest(table: pd.DataFrame) -> go.Figure:
@@ -65,18 +52,14 @@ def forest(table: pd.DataFrame) -> go.Figure:
 
 
 def render():
-    st.subheader("DS-LASSO 기반 증분 효과 분석")
+    st.markdown("#### DS-LASSO 기반 증분 효과 분석")
     raw, src = _load_data()
     if raw is None:
         return
-    date_col = next((c for c in raw.columns if c.lower() in ("date", "day", "week", "날짜", "일자", "주")), None)
-    if date_col is None:
+    df = dslasso.prepare(raw)
+    if df is None:
         st.error("날짜 열을 찾을 수 없습니다. 열 이름을 'date' 또는 '날짜'로 지정하세요.")
         return
-    raw[date_col] = pd.to_datetime(raw[date_col], errors="coerce")
-    df = raw.dropna(subset=[date_col]).set_index(date_col).sort_index()
-    df.index.name = "date"
-    df = _attach_trends(df)
     num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
 
     is_sample = src.startswith("샘플")
@@ -105,18 +88,23 @@ def render():
     if not errors:
         st.success(f"검증 통과 · 관측치 {len(sub[[target] + controls + candidates].dropna())}개 · 기간 {period[0]} ~ {period[1]}")
 
+    meta = {"target": target, "controls": controls, "candidates": candidates, "source": src,
+            "period_sel": f"{period[0]} ~ {period[1]}"}
     if st.button("DS-LASSO 실행", type="primary", disabled=bool(errors), key="dsl_run"):
         with st.spinner("변수 선택 및 추정 중…"):
-            res = dslasso.run(sub, target, controls, candidates)
-        res.update({"target": target, "controls": controls, "candidates": candidates, "source": src,
-                    "period_sel": f"{period[0]} ~ {period[1]}"})
+            res = dict(cached.dsl_run(sub, target, controls, candidates, refresh=True), **meta)
         st.session_state.dsl = res
         prev = [r for r in store.load("runs", default=[]) if r["version"] == res["version"]]
-        store.append("runs", {"version": res["version"], "run_at": res["run_at"], "user": st.session_state.user,
+        store.append("runs", {"version": res["version"], "run_at": res["run_at"],
                               "client": st.session_state.client, "target": target, "n": res["n"],
                               "candidates": candidates, "source": src, "period": res["period_sel"]})
         if prev:
             st.info(f"동일 입력 데이터(버전 {res['version']})의 {len(prev) + 1}번째 실행입니다 — 실행 시각을 기록했습니다.")
+
+    elif not errors and st.session_state.dsl is None:
+        hit = cached.dsl_if_cached(sub, target, controls, candidates)  # 같은 입력의 저장된 결과 자동 표시
+        if hit is not None:
+            st.session_state.dsl = dict(hit, **meta)
 
     res = st.session_state.dsl
     if not res:
@@ -144,7 +132,3 @@ def render():
     with st.expander("실행 이력 (현재 고객사)"):
         runs = [r for r in store.load("runs", default=[]) if r.get("client") == st.session_state.client]
         st.dataframe(pd.DataFrame(runs[::-1]), hide_index=True, width="stretch")
-
-    put_report("dslasso", f"DS-LASSO 증분 효과 (타깃: {res['target']})", figs=[fig], tables=[table],
-               text=f"버전 {res['version']} · 실행 {res['run_at']} · n={res['n']} · 기간 {res['period_sel']} · 데이터 {res['source']}\n"
-                    + "\n".join(res["warnings"]) + "\n결과는 연관성 추정이며 인과관계를 확정하지 않습니다.")

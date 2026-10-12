@@ -8,7 +8,8 @@ from datetime import datetime
 import pandas as pd
 from youtube_comment_downloader import SORT_BY_POPULAR, SORT_BY_RECENT, YoutubeCommentDownloader
 
-SORTS = {"인기순": SORT_BY_POPULAR, "최신순": SORT_BY_RECENT}
+# 인기순은 YouTube가 일부만(또는 0개) 돌려주는 경우가 있어 최신순을 기본값으로 둔다
+SORTS = {"최신순": SORT_BY_RECENT, "인기순": SORT_BY_POPULAR}
 
 
 class CommentError(Exception):
@@ -24,8 +25,10 @@ def fetch_youtube_comments(video_id: str, limit: int = 500, sort: str = "최신�
     last_err = None
     rows: list[dict] = []
     for attempt in range(retries):
+        # 마지막 시도는 최신순으로 대체 (인기순이 비어 오는 경우 대비)
+        sort_by = SORT_BY_RECENT if attempt == retries - 1 else SORTS.get(sort, SORT_BY_RECENT)
         try:
-            gen = YoutubeCommentDownloader().get_comments_from_url(url, sort_by=SORTS.get(sort, SORT_BY_RECENT))
+            gen = YoutubeCommentDownloader().get_comments_from_url(url, sort_by=sort_by)
             rows = list(itertools.islice(gen, limit))
             if len(rows) > 1:
                 break

@@ -1,0 +1,21 @@
+{
+  "_설명": "고객사별 기본 설정. 고객사를 선택하면 경쟁사와 URL이 자동으로 채워집니다. 첫 번째 고객사가 기본값입니다. 타 매체 URL이 비어 있으면 '타 플랫폼 성과 비교' 섹션을 숨깁니다. URL은 YouTube 영상, YouTube 채널(@핸들), Instagram 게시물을 지원합니다.",
+  "clients": {
+    "LG전자": {
+      "competitor": "삼성전자",
+      "urls": {
+        "main": "https://youtu.be/8_4Qo4At8GQ?si=rGfc6Wu9oUYY6qdf",
+        "competitor": "https://www.youtube.com/watch?v=U3n6g4IuQ8Q",
+        "other": "https://www.instagram.com/p/DdVHbwXz9mB/"
+      }
+    },
+    "LG유플러스": {
+      "competitor": "SK텔레콤",
+      "urls": {
+        "main": "https://www.youtube.com/watch?v=OJPn83Rtl2w",
+        "competitor": "https://www.youtube.com/@SKtelecom/videos",
+        "other": ""
+      }
+    }
+  }
+}

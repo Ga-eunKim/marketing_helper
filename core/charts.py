@@ -12,7 +12,7 @@ GRID = "rgba(128,128,128,0.18)"
 def style(fig: go.Figure, height: int = 380, title: str | None = None) -> go.Figure:
     fig.update_layout(
         height=height,
-        title=title,
+        title=dict(text=title or ""),  # None이면 Streamlit에서 'undefined'로 표시되므로 빈 문자열
         margin=dict(l=10, r=10, t=50 if title else 20, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         hovermode="x unified",

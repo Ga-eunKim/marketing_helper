@@ -83,7 +83,7 @@ def apply_exclusions(
     event_range: tuple | None,
     event_pattern: str | None,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """이벤트·자사 댓글 제외. (남은 df, 제외 내역 문구 리스트) 반환."""
+    """이벤트·광고주 댓글 제외. (남은 df, 제외 내역 문구 리스트) 반환."""
     log = []
     out = df.copy()
     if exclude_owner and owner_channel_id:
