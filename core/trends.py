@@ -24,6 +24,23 @@ def _cache_key(keywords, start, end, geo) -> str:
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
+def _latest_cached(keywords: list[str], geo: str):
+    """같은 키워드·지역으로 받아 둔 결과 중 가장 최근 것 (기간이 달라도)."""
+    best = None
+    for mp in CACHE_DIR.glob("trends_*.json"):
+        meta = json.loads(mp.read_text(encoding="utf-8"))
+        if sorted(meta["keywords"]) != sorted(keywords) or meta.get("geo") != (geo or "전 세계"):
+            continue
+        if best is None or meta["fetched_at"] > best[1]["fetched_at"]:
+            best = (mp, meta)
+    if best is None:
+        return None
+    mp, meta = best
+    df = pd.read_csv(mp.with_suffix(".csv"), parse_dates=["date"], index_col="date")
+    meta = dict(meta, from_cache=True, stale=True)
+    return df, meta
+
+
 def interest_over_time(keywords: list[str], start: date, end: date, geo: str = "KR",
                        use_cache: bool = True, retries: int = 3) -> tuple[pd.DataFrame, dict]:
     """키워드별 검색 관심도 (0–100 상대지수) 시계열과 메타정보 반환."""
@@ -58,6 +75,9 @@ def interest_over_time(keywords: list[str], start: date, end: date, geo: str = "
             if attempt < retries - 1:
                 time.sleep(4 * (attempt + 1))
     if df is None:
+        stale = _latest_cached(keywords, geo)
+        if stale is not None:  # 요청 실패 시 같은 키워드·지역의 마지막 결과로 대체
+            return stale
         if "429" in str(last):
             raise TrendsError("Google Trends 요청 한도 초과(429). 1~2분 후 다시 시도하세요. (성공한 조회 결과는 캐시되어 재요청하지 않습니다)")
         raise TrendsError(f"Google Trends 조회 실패: {type(last).__name__}: {last}")

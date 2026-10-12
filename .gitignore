@@ -1,5 +1,8 @@
 .venv/
 __pycache__/
 *.pyc
-data/
 .DS_Store
+# data/는 로컬 기록만 제외하고, 배포용 캐시(data/cache/)는 포함
+data/*
+!data/cache/
+data/cache/*.tmp

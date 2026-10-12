@@ -24,17 +24,19 @@ def comments(video_id: str, limit: int, sort: str, refresh: bool = False) -> pd.
 
 
 def comments_if_cached(video_id: str, limit: int, sort: str) -> pd.DataFrame | None:
-    return cache.get("comments", (video_id, limit, sort), COMMENT_TTL)
+    """화면 자동 표시용 — 오래된 수집 결과라도 보여준다 (새로 받기는 [댓글 새로 수집])."""
+    return cache.get("comments", (video_id, limit, sort))
 
 
 def image(url: str) -> bytes | None:
     def _get():
-        try:
-            r = requests.get(url, headers=uc.HEADERS, timeout=10)
-            return r.content if r.ok else None
-        except requests.RequestException:
-            return None
-    return cache.cached("image", url, _get, IMAGE_TTL)
+        r = requests.get(url, headers=uc.HEADERS, timeout=10)
+        r.raise_for_status()  # 실패는 예외로 → 이전에 받은 썸네일 유지
+        return r.content
+    try:
+        return cache.cached("image", url, _get, IMAGE_TTL)
+    except requests.RequestException:
+        return None
 
 
 def dsl_run(df: pd.DataFrame, target: str, controls: list[str], candidates: list[str], refresh: bool = False) -> dict:

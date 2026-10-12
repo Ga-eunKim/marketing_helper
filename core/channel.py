@@ -90,6 +90,11 @@ def _list(channel_id: str, since: date, max_pages: int = 20) -> list[dict]:
 
 
 def uploads(channel_id: str, since: date, refresh: bool = False) -> list[dict]:
-    """분석 시작일 이후 업로드된 영상 [{id, title, published, url}] — 하루 단위 캐시."""
-    return cache.cached("uploads_list", (channel_id, since.isoformat()), lambda: _list(channel_id, since),
-                        cache.DAY, refresh)
+    """분석 시작일 이후 업로드된 영상 [{id, title, published, url}].
+
+    채널별로 최근 1년치를 하루 단위로 캐시하고 기간은 읽을 때 거른다 — 날짜가 바뀌어도 캐시를 재사용하고,
+    새로 받기에 실패하면(클라우드 IP 차단 등) 마지막으로 받은 목록을 그대로 쓴다.
+    """
+    year_ago = date.today() - timedelta(days=365)
+    vids = cache.cached("uploads_ch", channel_id, lambda: _list(channel_id, min(since, year_ago)), cache.DAY, refresh)
+    return [v for v in vids if v["published"] >= since.isoformat()]

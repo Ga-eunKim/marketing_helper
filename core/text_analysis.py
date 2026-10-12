@@ -87,7 +87,8 @@ def apply_exclusions(
     log = []
     out = df.copy()
     if exclude_owner and owner_channel_id:
-        m = out["channel"] == owner_channel_id
+        from .comments import hash_channel
+        m = out["channel_hash"] == hash_channel(owner_channel_id)
         log.append(f"광고주(채널 소유자) 댓글 {int(m.sum())}건 제외")
         out = out[~m]
     if exclude_replies:

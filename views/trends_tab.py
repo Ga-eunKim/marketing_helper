@@ -75,6 +75,8 @@ def render():
             st.info("아래에서 키워드와 기간을 확인한 뒤 [Trends 조회]를 누르세요.")
             return
         df, meta = st.session_state.trends
+        if meta.get("stale"):
+            st.caption(f"ℹ️ Google Trends 요청이 제한되어 {meta['fetched_at']}에 받아 둔 결과({meta['timeframe']})를 표시합니다.")
         if sorted(meta["keywords"]) != sorted(keywords):
             st.caption(f"ℹ️ 그래프는 이전 키워드({', '.join(meta['keywords'])}) 결과입니다. 아래 [Trends 조회]를 눌러 갱신하세요.")
         uploads = []
