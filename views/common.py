@@ -7,13 +7,14 @@ import streamlit as st
 
 from core import cached
 from core import url_connector as uc
-from core.config import DEFAULT_CLIENT, SLOTS, preset
+from core.config import SLOTS, clients, preset
 
 
 def init_state():
     ss = st.session_state
-    if "urls" not in ss:
-        apply_preset(DEFAULT_CLIENT)
+    client = ss.get("client_sel") or clients()[0]
+    if "urls" not in ss or ss.get("preset_applied") != preset(client):
+        apply_preset(client)  # 첫 실행이거나 clients.json이 바뀐 경우 다시 매핑
     ss.setdefault("slots", {})          # key -> meta dict | {"error":..., "fix":...}
     ss.setdefault("comment_data", {})   # key -> 수집 댓글 DataFrame
     ss.setdefault("trends", None)       # (df, meta)
@@ -25,6 +26,7 @@ def apply_preset(client: str):
     """고객사 선택 시 경쟁사·URL을 프리셋으로 채우고 이전 고객사의 결과를 비운다 (다음 실행에서 자동 연동)."""
     ss = st.session_state
     p = preset(client)
+    ss.preset_applied = p
     ss.urls = dict(p["urls"])
     for k, v in p["urls"].items():
         ss[f"url_{k}"] = v  # 사이드바 입력칸 값도 함께 교체

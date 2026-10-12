@@ -13,7 +13,7 @@ import pandas as pd  # noqa: E402
 
 from core import cached, channel, dslasso, trends  # noqa: E402
 from core import comments as cm  # noqa: E402
-from core.config import CLIENTS, preset  # noqa: E402
+from core.config import clients, preset  # noqa: E402
 
 SAMPLE = Path(__file__).resolve().parent.parent / "sample_data" / "sample_weekly_model.csv"
 SAMPLE_ROLES = {
@@ -69,7 +69,7 @@ def warm_client(client: str):
 
 
 def main():
-    for client in CLIENTS:
+    for client in clients():
         warm_client(client)
 
     df = dslasso.prepare(pd.read_csv(SAMPLE))

@@ -4,7 +4,7 @@
 """
 import streamlit as st
 
-from core.config import CLIENTS, COMPANIES, SLOTS
+from core.config import SLOTS, clients, companies
 from views import brand_tab, dslasso_tab, overview, platform_tab, trends_tab
 from views.common import apply_preset, connect_all, init_state
 
@@ -28,9 +28,9 @@ def sidebar():
     with st.sidebar:
         st.markdown("### 캠페인 설정")
         # 기본 고객사가 미리 선택된 상태로 시작
-        ss.client = st.selectbox("고객사", CLIENTS, key="client_sel",
+        ss.client = st.selectbox("고객사", clients(), key="client_sel",
                                  on_change=lambda: apply_preset(ss.client_sel))  # 고객사별 경쟁사·URL 자동 매핑
-        ss.competitor = st.selectbox("경쟁사", [c for c in COMPANIES if c != ss.client], key="competitor_sel")
+        ss.competitor = st.selectbox("경쟁사", [c for c in companies() if c != ss.client], key="competitor_sel")
         st.caption("분석할 URL을 입력하세요")
         for s in SLOTS:
             ss.urls[s["key"]] = st.text_input(s["label"], key=f"url_{s['key']}",
