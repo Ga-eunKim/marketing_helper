@@ -1,5 +1,5 @@
 {
-  "_설명": "고객사별 기본 설정. 고객사를 선택하면 경쟁사와 URL이 자동으로 채워집니다. 첫 번째 고객사가 기본값입니다. 타 매체 URL이 비어 있으면 '타 플랫폼 성과 비교' 섹션을 숨깁니다. URL은 YouTube 영상, YouTube 채널(@핸들), Instagram 게시물을 지원합니다.",
+  "_설명": "고객사별 기본 설정. 고객사를 선택하면 경쟁사·URL이 자동으로 채워집니다(첫 번째 고객사가 기본값). 타 매체 URL이 비어 있으면 '타 플랫폼 성과 비교' 섹션을 숨깁니다. URL은 YouTube 영상, YouTube 채널(@핸들), Instagram 게시물을 지원합니다. category_baseline: 반사실 분석(BSTS)의 통제 변수로 쓰는 업종 카테고리 검색어(최대 4개). promo_events: 고객사 또는 경쟁사로 선택되면 검색 관심도 섹션에 '이벤트가 없었다면' 반사실 분석을 표시할 회사별 이벤트 (keywords로 이벤트 기간을 찾음, min_window_days는 하루짜리 급등 이벤트의 최소 분석 기간). label_ko: KOR 반사실 제목에 들어갈 이벤트 표현. names_en: ENG 화면용 회사 영문명.",
   "clients": {
     "LG전자": {
       "competitor": "삼성전자",
@@ -7,7 +7,12 @@
         "main": "https://youtu.be/8_4Qo4At8GQ?si=rGfc6Wu9oUYY6qdf",
         "competitor": "https://www.youtube.com/watch?v=U3n6g4IuQ8Q",
         "other": "https://www.instagram.com/p/DdVHbwXz9mB/"
-      }
+      },
+      "category_baseline": [
+        "TV",
+        "냉장고",
+        "가전제품"
+      ]
     },
     "LG유플러스": {
       "competitor": "SK텔레콤",
@@ -15,7 +20,52 @@
         "main": "https://www.youtube.com/watch?v=OJPn83Rtl2w",
         "competitor": "https://www.youtube.com/watch?v=6wUKCp681lY",
         "other": ""
-      }
+      },
+      "category_baseline": [
+        "요금제",
+        "알뜰폰",
+        "휴대폰"
+      ]
+    },
+    "삼성전자": {
+      "competitor": "LG전자",
+      "urls": {
+        "main": "https://www.youtube.com/watch?v=U3n6g4IuQ8Q",
+        "competitor": "https://youtu.be/8_4Qo4At8GQ?si=rGfc6Wu9oUYY6qdf",
+        "other": ""
+      },
+      "category_baseline": [
+        "TV",
+        "냉장고",
+        "가전제품"
+      ]
+    }
+  },
+  "names_en": {
+    "LG전자": "LG Electronics",
+    "삼성전자": "Samsung Electronics",
+    "LG유플러스": "LG U+",
+    "SK텔레콤": "SK Telecom"
+  },
+  "promo_events": {
+    "삼성전자": {
+      "name": "삼성전자 대규모 세일",
+      "name_en": "Samsung Mega Sale",
+      "keywords": [
+        "삼성전자 감사 페스티벌",
+        "삼성전자 감사 세일"
+      ],
+      "label_ko": "삼성전자의 대형 프로모션"
+    },
+    "LG유플러스": {
+      "name": "LG유플러스 해킹 사태",
+      "name_en": "LG U+ Hacking Incident",
+      "keywords": [
+        "LG유플러스 해킹",
+        "유플러스 해킹"
+      ],
+      "min_window_days": 14,
+      "label_ko": "LG유플러스의 해킹 사태"
     }
   }
 }

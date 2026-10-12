@@ -13,7 +13,7 @@ import pandas as pd  # noqa: E402
 
 from core import cached, channel, dslasso, trends  # noqa: E402
 from core import comments as cm  # noqa: E402
-from core.config import clients, preset  # noqa: E402
+from core.config import category_baseline, clients, preset, promo_event  # noqa: E402
 
 SAMPLE = Path(__file__).resolve().parent.parent / "sample_data" / "sample_weekly_model.csv"
 SAMPLE_ROLES = {
@@ -32,6 +32,19 @@ def step(name, fn):
         return out
     except Exception as e:
         print(f"✕ {name}: {type(e).__name__}: {e}")
+
+
+def warm_counterfactual(client: str, competitor: str, since):
+    """'이벤트가 없었다면' 반사실 분석용 Trends (고객사+카테고리, 프로모션 키워드)."""
+    found = promo_event(client, competitor)
+    if not found:
+        return
+    for kws in ([client] + category_baseline(client), found[1]["keywords"]):
+        for attempt in range(4):
+            if step(f"Trends (반사실) {kws} (시도 {attempt + 1})",
+                    lambda: trends.interest_over_time(kws, since, date.today(), "KR", retries=2)):
+                break
+            time.sleep(30)
 
 
 def warm_client(client: str):
@@ -59,7 +72,10 @@ def warm_client(client: str):
         if meta["platform"] == "Instagram" and meta.get("followers") is None:
             print("    ⚠️ Instagram 팔로워 수 수집 실패 (요청 제한) — 나중에 앱에서 [연동]으로 재시도")
 
-    kws = [client, p["competitor"]]
+    warm_counterfactual(client, p["competitor"], since)
+
+    found = promo_event(client, p["competitor"])  # 메인 그래프 = 고객사·경쟁사 + 이벤트 키워드(최대 3개)
+    kws = [client, p["competitor"]] + (found[1]["keywords"][:3] if found else [])
     for attempt in range(4):
         r = step(f"Google Trends {kws} (시도 {attempt + 1})",
                  lambda: trends.interest_over_time(kws, since, date.today(), "KR", retries=2))

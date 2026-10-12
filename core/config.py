@@ -2,6 +2,8 @@
 
 clients.json은 매번 다시 읽으므로 파일을 수정하면 서버 재시작 없이 반영된다.
 """
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -36,3 +38,26 @@ def preset(client: str) -> dict:
     urls = {s["key"]: p.get("urls", {}).get(s["key"], "") for s in SLOTS}
     competitor = p.get("competitor") or next(c for c in companies() if c != client)
     return {"competitor": competitor, "urls": urls}
+
+
+def _file() -> dict:
+    return json.loads(CLIENTS_FILE.read_text(encoding="utf-8"))
+
+
+def promo_event(client: str, competitor: str) -> tuple[str, dict] | None:
+    """고객사 또는 경쟁사에 등록된 프로모션 이벤트 (경쟁사 우선) — (회사명, {name, name_en, keywords})."""
+    events = _file().get("promo_events", {})
+    for company in (competitor, client):
+        if company in events:
+            return company, events[company]
+    return None
+
+
+def category_baseline(client: str) -> list[str]:
+    """반사실 분석 통제 변수(업종 카테고리 검색어) — Trends 요청당 5개 제한 때문에 최대 4개."""
+    return presets().get(client, {}).get("category_baseline", [])[:4]
+
+
+def name_en(company: str) -> str:
+    """ENG 화면용 회사 영문명 (없으면 원래 이름)."""
+    return _file().get("names_en", {}).get(company, company)
