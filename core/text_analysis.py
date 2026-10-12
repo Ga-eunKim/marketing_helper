@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+from .i18n import t
+
 import math
 import re
 from collections import Counter
@@ -89,23 +91,25 @@ def apply_exclusions(
     if exclude_owner and owner_channel_id:
         from .comments import hash_channel
         m = out["channel_hash"] == hash_channel(owner_channel_id)
-        log.append(f"광고주(채널 소유자) 댓글 {int(m.sum())}건 제외")
+        log.append(t(f"광고주(채널 소유자) 댓글 {int(m.sum())}건 제외", f"Excluded {int(m.sum())} comment(s) by the advertiser (channel owner)"))
         out = out[~m]
     if exclude_replies:
         m = out["is_reply"]
-        log.append(f"답글 {int(m.sum())}건 제외 (최상위 댓글만 사용)")
+        log.append(t(f"답글 {int(m.sum())}건 제외 (최상위 댓글만 사용)", f"Excluded {int(m.sum())} replies (top-level comments only)"))
         out = out[~m]
     if event_range and all(event_range):
         s, e = pd.Timestamp(event_range[0]), pd.Timestamp(event_range[1])
         m = out["date"].between(s, e)
-        log.append(f"이벤트 기간 {s.date()}~{e.date()} 작성 댓글 {int(m.sum())}건 제외 (작성일은 YouTube 상대시간 기준 추정)")
+        log.append(t(f"이벤트 기간 {s.date()}~{e.date()} 작성 댓글 {int(m.sum())}건 제외 (작성일은 YouTube 상대시간 기준 추정)",
+                      f"Excluded {int(m.sum())} comment(s) posted during the event window {s.date()}–{e.date()} (post dates estimated from YouTube relative times)"))
         out = out[~m]
     if event_pattern:
         try:
             m = out["text"].str.contains(event_pattern, regex=True, na=False)
         except re.error:
             m = out["text"].str.contains(re.escape(event_pattern), regex=True, na=False)
-        log.append(f"이벤트 응모 패턴 '{event_pattern}' 일치 댓글 {int(m.sum())}건 제외")
+        log.append(t(f"이벤트 응모 패턴 '{event_pattern}' 일치 댓글 {int(m.sum())}건 제외",
+                      f"Excluded {int(m.sum())} comment(s) matching the contest-entry pattern '{event_pattern}'"))
         out = out[~m]
     return out, log
 
@@ -128,9 +132,9 @@ def analyze(df: pd.DataFrame, lexicon: dict, message_keywords: list[str]) -> tup
 
 def top_terms(texts: pd.Series, n: int = 20) -> pd.DataFrame:
     c = Counter()
-    for t in texts:
-        for tok in re.findall(r"[가-힣A-Za-z]{2,}", t):
+    for text in texts:
+        for tok in re.findall(r"[가-힣A-Za-z]{2,}", text):
             if tok.lower() in STOPWORDS or tok in STOPWORDS:
                 continue
             c[tok] += 1
-    return pd.DataFrame(c.most_common(n), columns=["키워드", "빈도"])
+    return pd.DataFrame(c.most_common(n), columns=[t("키워드", "Keyword"), t("빈도", "Count")])

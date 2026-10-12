@@ -42,9 +42,9 @@ def image(url: str) -> bytes | None:
 def dsl_run(df: pd.DataFrame, target: str, controls: list[str], candidates: list[str], refresh: bool = False) -> dict:
     """동일 입력(버전 해시)이면 저장된 결과 재사용. refresh=True면 재실행 후 덮어씀."""
     version = dslasso.input_hash(df[[target] + controls + candidates], target, controls, candidates)
-    return cache.cached("dsl", version, lambda: dslasso.run(df, target, controls, candidates), refresh=refresh)
+    return cache.cached("dsl2", version, lambda: dslasso.run(df, target, controls, candidates), refresh=refresh)
 
 
 def dsl_if_cached(df: pd.DataFrame, target: str, controls: list[str], candidates: list[str]) -> dict | None:
     version = dslasso.input_hash(df[[target] + controls + candidates], target, controls, candidates)
-    return cache.get("dsl", version)
+    return cache.get("dsl2", version)

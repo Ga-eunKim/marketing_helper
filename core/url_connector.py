@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from .i18n import t
+
 import html
 import re
 from datetime import datetime, timezone
@@ -39,13 +41,13 @@ def parse_url(url: str) -> tuple[str, str]:
     """(platform, id) 반환. 유효하지 않으면 ConnectorError."""
     url = (url or "").strip()
     if not url:
-        raise ConnectorError("URL이 비어 있습니다.", "YouTube 영상 또는 Instagram 게시물/릴스 URL을 붙여넣으세요.")
+        raise ConnectorError(t("URL이 비어 있습니다.", "The URL is empty."), t("YouTube 영상 또는 Instagram 게시물/릴스 URL을 붙여넣으세요.", "Paste a YouTube video or Instagram post/Reel URL."))
     if not re.match(r"^https?://", url):
         url = "https://" + url
     u = urlparse(url)
     host = (u.netloc or "").lower().removeprefix("www.").removeprefix("m.")
     if not host:
-        raise ConnectorError("URL 형식이 올바르지 않습니다.", "https:// 로 시작하는 전체 주소를 입력하세요.")
+        raise ConnectorError(t("URL 형식이 올바르지 않습니다.", "Invalid URL format."), t("https:// 로 시작하는 전체 주소를 입력하세요.", "Enter the full address starting with https://."))
 
     if host == "youtu.be":
         vid = u.path.strip("/").split("/")[0]
@@ -63,20 +65,24 @@ def parse_url(url: str) -> tuple[str, str]:
         m = re.search(r"/(reel|reels|p|tv)/([A-Za-z0-9_-]+)", u.path)
         if not m:
             raise ConnectorError(
-                "Instagram 게시물/릴스 주소가 아닙니다 (프로필·스토리 주소는 지원하지 않음).",
-                "예: https://www.instagram.com/reel/<코드>/ 형식의 게시물 주소를 입력하세요.",
+                t("Instagram 게시물/릴스 주소가 아닙니다 (프로필·스토리 주소는 지원하지 않음).",
+                  "Not an Instagram post/Reel URL (profile and Story URLs aren't supported)."),
+                t("예: https://www.instagram.com/reel/<코드>/ 형식의 게시물 주소를 입력하세요.",
+                  "Use a post URL like https://www.instagram.com/reel/<code>/."),
             )
         return "Instagram", m.group(2)
     else:
         raise ConnectorError(
-            f"지원하지 않는 도메인입니다: {host}",
-            "YouTube 영상·채널(youtube.com, youtu.be) 또는 Instagram(instagram.com) 주소만 연동할 수 있습니다.",
+            t(f"지원하지 않는 도메인입니다: {host}", f"Unsupported domain: {host}"),
+            t("YouTube 영상·채널(youtube.com, youtu.be) 또는 Instagram(instagram.com) 주소만 연동할 수 있습니다.",
+              "Only YouTube video/channel (youtube.com, youtu.be) or Instagram (instagram.com) URLs are supported."),
         )
 
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid or ""):
         raise ConnectorError(
-            "YouTube 영상 ID를 찾을 수 없습니다.",
-            "예: https://www.youtube.com/watch?v=XXXXXXXXXXX 또는 https://youtu.be/XXXXXXXXXXX",
+            t("YouTube 영상 ID를 찾을 수 없습니다.", "Couldn't find a YouTube video ID."),
+            t("예: https://www.youtube.com/watch?v=XXXXXXXXXXX 또는 https://youtu.be/XXXXXXXXXXX",
+              "e.g. https://www.youtube.com/watch?v=XXXXXXXXXXX or https://youtu.be/XXXXXXXXXXX"),
         )
     return "YouTube", vid
 
@@ -109,18 +115,23 @@ def fetch_youtube(video_id: str) -> dict:
             timeout=TIMEOUT,
         )
     except requests.RequestException as e:
-        raise ConnectorError(f"YouTube 연결 실패: {e}", "네트워크 연결을 확인한 뒤 다시 시도하세요.")
+        raise ConnectorError(t(f"YouTube 연결 실패: {e}", f"Couldn't reach YouTube: {e}"),
+                             t("네트워크 연결을 확인한 뒤 다시 시도하세요.", "Check your network connection and try again."))
     if oe.status_code in (401, 403):
-        raise ConnectorError("비공개 또는 삽입이 제한된 영상입니다.", "공개(또는 일부 공개) 상태의 영상 URL을 사용하세요.")
+        raise ConnectorError(t("비공개 또는 삽입이 제한된 영상입니다.", "This video is private or embedding is restricted."),
+                             t("공개(또는 일부 공개) 상태의 영상 URL을 사용하세요.", "Use a public or unlisted video URL."))
     if oe.status_code == 404:
-        raise ConnectorError("존재하지 않거나 삭제된 영상입니다.", "영상 ID가 정확한지 확인하세요.")
+        raise ConnectorError(t("존재하지 않거나 삭제된 영상입니다.", "The video doesn't exist or was removed."),
+                             t("영상 ID가 정확한지 확인하세요.", "Double-check the video ID."))
     oe.raise_for_status()
     o = oe.json()
 
     page = requests.get(watch_url, headers=HEADERS, timeout=TIMEOUT).text
     if "ytInitialPlayerResponse" not in page:  # 'unusual traffic' 차단 페이지 등
-        raise ConnectorError("YouTube가 일시적으로 요청을 제한했습니다 (비정상 트래픽 감지).",
-                             "몇 분~1시간 뒤 [연동]을 다시 누르세요. 이전에 수집한 값이 있으면 그 값을 계속 사용합니다.")
+        raise ConnectorError(t("YouTube가 일시적으로 요청을 제한했습니다 (비정상 트래픽 감지).",
+                               "YouTube is temporarily rate-limiting requests (unusual traffic detected)."),
+                             t("몇 분~1시간 뒤 [연동]을 다시 누르세요. 이전에 수집한 값이 있으면 그 값을 계속 사용합니다.",
+                               "Click [Connect] again in a few minutes to an hour. Previously collected data stays in use."))
 
     def grab(key):
         m = re.search(r'"%s":\s*"?([^",}]+)' % key, page)
@@ -186,7 +197,8 @@ def _instagram_via_instaloader(shortcode: str) -> dict:
 def _instagram_via_meta(shortcode: str) -> dict:
     r = requests.get(f"https://www.instagram.com/p/{shortcode}/", headers=HEADERS, timeout=TIMEOUT)
     if r.status_code == 404:
-        raise ConnectorError("존재하지 않거나 삭제된 게시물입니다.", "게시물 코드가 정확한지 확인하세요.")
+        raise ConnectorError(t("존재하지 않거나 삭제된 게시물입니다.", "The post doesn't exist or was removed."),
+                             t("게시물 코드가 정확한지 확인하세요.", "Double-check the post code."))
     metas = {}
     for tag in re.findall(r"<meta\s[^>]+>", r.text):
         k = re.search(r'(?:property|name)="([^"]+)"', tag)
@@ -196,8 +208,10 @@ def _instagram_via_meta(shortcode: str) -> dict:
     desc = metas.get("og:description") or metas.get("description")
     if not desc:
         raise ConnectorError(
-            "Instagram이 로그인 벽 또는 요청 제한(429)으로 공개 정보를 반환하지 않았습니다.",
-            "잠시 후 [연동]을 다시 눌러 재시도하세요. 비공개 계정 게시물은 수집할 수 없습니다.",
+            t("Instagram이 로그인 벽 또는 요청 제한(429)으로 공개 정보를 반환하지 않았습니다.",
+              "Instagram returned no public data (login wall or rate limit 429)."),
+            t("잠시 후 [연동]을 다시 눌러 재시도하세요. 비공개 계정 게시물은 수집할 수 없습니다.",
+              "Click [Connect] again shortly. Posts from private accounts can't be collected."),
         )
     likes = re.search(r"([\d,.]+[KkMm]?)\s*(likes|좋아요)", desc)
     comments = re.search(r"([\d,.]+[KkMm]?)\s*(comments|댓글)", desc)
@@ -266,14 +280,17 @@ def fetch_youtube_channel(path: str) -> dict:
     try:
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
     except requests.RequestException as e:
-        raise ConnectorError(f"YouTube 연결 실패: {e}", "네트워크 연결을 확인한 뒤 다시 시도하세요.")
+        raise ConnectorError(t(f"YouTube 연결 실패: {e}", f"Couldn't reach YouTube: {e}"),
+                             t("네트워크 연결을 확인한 뒤 다시 시도하세요.", "Check your network connection and try again."))
     if r.status_code == 404:
-        raise ConnectorError("존재하지 않는 채널입니다.", "채널 주소(@핸들)가 정확한지 확인하세요.")
+        raise ConnectorError(t("존재하지 않는 채널입니다.", "The channel doesn't exist."),
+                             t("채널 주소(@핸들)가 정확한지 확인하세요.", "Double-check the channel handle (@handle)."))
     page = r.text
     cid = re.search(r'"externalId":"(UC[\w-]{22})"', page)
     if not cid:
-        raise ConnectorError("YouTube 채널 정보를 읽지 못했습니다 (일시 차단 또는 구조 변경).",
-                             "몇 분 뒤 [연동]을 다시 누르세요.")
+        raise ConnectorError(t("YouTube 채널 정보를 읽지 못했습니다 (일시 차단 또는 구조 변경).",
+                               "Couldn't read the YouTube channel (temporary block or page change)."),
+                             t("몇 분 뒤 [연동]을 다시 누르세요.", "Click [Connect] again in a few minutes."))
 
     def meta(prop):
         m = re.search(r'<meta property="og:%s" content="([^"]*)"' % prop, page)
@@ -322,11 +339,11 @@ def default_message_keywords(meta: dict, limit: int = 6) -> list[str]:
     tokens = re.findall(r"[가-힣A-Za-z0-9]+", text)
     out = []
     stop = {"EVENT", "LG전자", "있는", "받는", "언제인가요", "여러분에게", "가장", "같은", "것", "확인해", "주세요"}
-    for t in tokens:
-        if len(t) > 2 and t.endswith(_PARTICLES):
-            t = t[:-1]
-        if len(t) < 2 or t in stop or t.isdigit():
+    for tok in tokens:
+        if len(tok) > 2 and tok.endswith(_PARTICLES):
+            tok = tok[:-1]
+        if len(tok) < 2 or tok in stop or tok.isdigit():
             continue
-        if t not in out:
-            out.append(t)
+        if tok not in out:
+            out.append(tok)
     return out[:limit]

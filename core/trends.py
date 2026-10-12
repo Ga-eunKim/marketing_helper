@@ -1,6 +1,8 @@
 """Google Trends (pytrends) 래퍼: 디스크 캐시 + 429 백오프 재시도."""
 from __future__ import annotations
 
+from .i18n import t
+
 import hashlib
 import json
 import time
@@ -46,9 +48,9 @@ def interest_over_time(keywords: list[str], start: date, end: date, geo: str = "
     """키워드별 검색 관심도 (0–100 상대지수) 시계열과 메타정보 반환."""
     keywords = [k.strip() for k in keywords if k and k.strip()][:5]
     if not keywords:
-        raise TrendsError("키워드가 없습니다. 최소 1개, 최대 5개를 입력하세요.")
+        raise TrendsError(t("키워드가 없습니다. 최소 1개, 최대 5개를 입력하세요.", "No search terms. Enter 1–5 terms."))
     if start >= end:
-        raise TrendsError("분석 기간의 시작일이 종료일보다 빨라야 합니다.")
+        raise TrendsError(t("분석 기간의 시작일이 종료일보다 빨라야 합니다.", "The start date must be before the end date."))
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     key = _cache_key(keywords, start, end, geo)
@@ -79,10 +81,12 @@ def interest_over_time(keywords: list[str], start: date, end: date, geo: str = "
         if stale is not None:  # 요청 실패 시 같은 키워드·지역의 마지막 결과로 대체
             return stale
         if "429" in str(last):
-            raise TrendsError("Google Trends 요청 한도 초과(429). 1~2분 후 다시 시도하세요. (성공한 조회 결과는 캐시되어 재요청하지 않습니다)")
-        raise TrendsError(f"Google Trends 조회 실패: {type(last).__name__}: {last}")
+            raise TrendsError(t("Google Trends 요청 한도 초과(429). 1~2분 후 다시 시도하세요. (성공한 조회 결과는 캐시되어 재요청하지 않습니다)",
+                               "Google Trends rate limit hit (429). Try again in 1–2 minutes. (Successful results are cached.)"))
+        raise TrendsError(t(f"Google Trends 조회 실패: {type(last).__name__}: {last}", f"Google Trends request failed: {type(last).__name__}: {last}"))
     if df.empty:
-        raise TrendsError("해당 키워드·기간·지역에 대한 검색 데이터가 충분하지 않습니다 (검색량이 매우 적은 키워드일 수 있음).")
+        raise TrendsError(t("해당 키워드·기간·지역에 대한 검색 데이터가 충분하지 않습니다 (검색량이 매우 적은 키워드일 수 있음).",
+                               "Not enough search data for these terms, dates and region (search volume may be very low)."))
 
     partial = bool(df.get("isPartial", pd.Series(dtype=bool)).astype(bool).any())
     df = df.drop(columns=["isPartial"], errors="ignore")

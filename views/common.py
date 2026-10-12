@@ -5,9 +5,10 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from core import cached
+from core import cached, i18n
 from core import url_connector as uc
 from core.config import SLOTS, clients, preset
+from core.i18n import t
 
 
 def init_state():
@@ -51,7 +52,7 @@ def connect_all(force: bool = False):
             ss.slots[s["key"]] = {"error": e.cause, "fix": e.fix, "url": url}
             continue
         except Exception as e:  # 예상 못 한 네트워크/파싱 오류
-            ss.slots[s["key"]] = {"error": f"{type(e).__name__}: {e}", "fix": "잠시 후 [연동]을 다시 눌러 재시도하세요.", "url": url}
+            ss.slots[s["key"]] = {"error": f"{type(e).__name__}: {e}", "fix": t("잠시 후 [연동]을 다시 눌러 재시도하세요.", "Click [Connect] again shortly."), "url": url}
             continue
         same = prev.get("id") == meta["id"]
         meta["campaign_name"] = prev.get("campaign_name") if same else (meta.get("title") or "")[:40]
@@ -77,8 +78,8 @@ def connected_slots(platform: str | None = None) -> list[tuple[dict, dict]]:
 
 
 def slot_name(s: dict, m: dict) -> str:
-    """화면 표기용 라벨: '고객사 YouTube', '경쟁사 YouTube', '고객사 Instagram'."""
-    return f"{s['side']} {m['platform']}"
+    """화면 표기용 라벨: 'Client YouTube' / '고객사 YouTube' 등."""
+    return f"{i18n.side(s['side'])} {m['platform']}"
 
 
 def image_bytes(url: str) -> bytes | None:

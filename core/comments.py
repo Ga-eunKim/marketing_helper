@@ -1,6 +1,8 @@
 """YouTube 공개 댓글 수집 (youtube-comment-downloader, API 키 불필요)."""
 from __future__ import annotations
 
+from .i18n import t
+
 import hashlib
 import itertools
 import time
@@ -53,7 +55,8 @@ def fetch_youtube_comments(video_id: str, limit: int = 500, sort: str = "최신�
         time.sleep(1.5 * (attempt + 1))
     if not rows:
         if last_err:
-            raise CommentError(f"댓글 수집 실패: {type(last_err).__name__}. 댓글이 비활성화되었거나 일시적 차단일 수 있습니다.")
+            raise CommentError(t(f"댓글 수집 실패: {type(last_err).__name__}. 댓글이 비활성화되었거나 일시적 차단일 수 있습니다.",
+                                f"Comment collection failed: {type(last_err).__name__}. Comments may be disabled or temporarily blocked."))
         return pd.DataFrame(columns=COLUMNS)
 
     df = pd.DataFrame(rows)

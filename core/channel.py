@@ -6,6 +6,8 @@ Shorts·라이브 탭은 포함하지 않는다.
 """
 from __future__ import annotations
 
+from .i18n import t
+
 import json
 import re
 from datetime import date, timedelta
@@ -65,7 +67,8 @@ def _list(channel_id: str, since: date, max_pages: int = 20) -> list[dict]:
         ver = re.search(r'"INNERTUBE_CLIENT_VERSION":"([^"]+)"', html).group(1)
         data = json.loads(re.search(r"var ytInitialData = (\{.*?\});</script>", html, re.S).group(1))
     except (AttributeError, json.JSONDecodeError):
-        raise ChannelError("채널 페이지 구조를 읽을 수 없습니다 (YouTube 구조 변경 또는 일시 차단).")
+        raise ChannelError(t("채널 페이지 구조를 읽을 수 없습니다 (YouTube 구조 변경 또는 일시 차단).",
+                             "Couldn't parse the channel page (YouTube layout change or temporary block)."))
     window = (date.today() - since).days
     videos, tok = _parse(data)
     for _ in range(max_pages):

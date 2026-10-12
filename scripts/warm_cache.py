@@ -72,10 +72,11 @@ def main():
     for client in clients():
         warm_client(client)
 
-    df = dslasso.prepare(pd.read_csv(SAMPLE))
-    step("DS-LASSO 샘플", lambda: cached.dsl_run(df, SAMPLE_ROLES["target"], SAMPLE_ROLES["controls"],
-                                                SAMPLE_ROLES["candidates"], refresh=True))
-
+    from views.dslasso_tab import SAMPLE_EN  # ENG 화면용 변수명
+    for lang, rename in [("KOR", {}), ("ENG", SAMPLE_EN)]:
+        df = dslasso.prepare(pd.read_csv(SAMPLE).rename(columns=rename))
+        r = {k: ([rename.get(c, c) for c in v] if isinstance(v, list) else rename.get(v, v)) for k, v in SAMPLE_ROLES.items()}
+        step(f"DS-LASSO 샘플 ({lang})", lambda: cached.dsl_run(df, r["target"], r["controls"], r["candidates"], refresh=True))
 
 if __name__ == "__main__":
     main()
