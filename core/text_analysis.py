@@ -18,15 +18,22 @@ DEFAULT_LEXICON = {
         "구매하고 싶", "구매할", "구매했", "구매 예정", "구매각", "주문했", "주문할", "결제했", "장바구니",
         "구독했", "구독 신청", "구독신청", "신청했", "신청할", "신청하려", "가입했", "갈아타", "바꿔야", "바꿀까",
         "들여야", "상담 받아", "상담받아", "견적 받", "써보고 싶", "써보고싶", "쓰고 싶", "쓰고싶", "해야겠",
+        # English
+        "want to buy", "gonna buy", "will buy", "bought", "purchase", "spend", "spent", "wallet", "pull for", "pulling for",
+        "download", "installed", "came back", "coming back", "returning", "back to the game",
     ],
     "positive": [
         "좋", "최고", "편하", "편리", "편해", "만족", "깔끔", "안심", "추천", "감동", "멋지", "멋있", "훌륭",
         "대박", "유용", "든든", "사랑", "굿", "짱", "믿음", "신뢰", "똑똑", "부럽", "완벽", "꿀", "개이득",
         "👍", "❤", "😍", "🥰", "😊",
+        # English
+        "love", "amazing", "awesome", "beautiful", "best", "great", "perfect", "excited", "hype", "masterpiece",
     ],
     "negative": [
         "별로", "비싸", "불편", "실망", "최악", "싫", "아쉽", "짜증", "고장", "불만", "거짓", "사기", "비추",
         "광고 그만", "광고충", "후회", "느려", "시끄럽", "as 안", "as안", "엉망", "호구", "👎", "😡",
+        # English
+        "boring", "worst", "disappointed", "trash", "rigged", "scam", "annoying", "cash grab", "p2w",
     ],
 }
 # '좋' 앞뒤 부정 수식 → 부정으로 뒤집기 (반대로 부정어 + '없' 은 부정 취소: _negated)

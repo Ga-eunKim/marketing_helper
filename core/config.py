@@ -61,3 +61,12 @@ def category_baseline(client: str) -> list[str]:
 def name_en(company: str) -> str:
     """ENG 화면용 회사 영문명 (없으면 원래 이름)."""
     return _file().get("names_en", {}).get(company, company)
+
+
+def page_type(client: str) -> str:
+    """'standard' 또는 'game' (게임 캠페인 전용 페이지)."""
+    return presets().get(client, {}).get("page", "standard")
+
+
+def game_config(client: str) -> dict:
+    return presets().get(client, {}).get("game", {})

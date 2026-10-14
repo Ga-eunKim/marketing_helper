@@ -6,3 +6,5 @@ __pycache__/
 data/*
 !data/cache/
 data/cache/*.tmp
+# 외부 도구로 받은 원본 댓글 CSV (작성자 정보 포함) — 저장소에 올리지 않음
+sample_data/*Comments*.csv

@@ -44,14 +44,14 @@ def _metrics(m: dict) -> dict:
 
 
 def render():
-    st.markdown(t("#### 타 플랫폼 성과 비교", "#### Cross-Channel Performance"))
+    st.markdown(t("#### 유튜브와 인스타그램, 어디서 더 반응했을까", "#### YouTube vs. Instagram"))
     own = [(s, m) for s, m in connected_slots() if s["side"] == "고객사"]
     if len({m["platform"] for _, m in own}) < 2:
-        st.info(t("고객사 YouTube와 동일 소재 Instagram 링크가 모두 연동되어야 비교할 수 있습니다.",
-                  "Connect both the client's YouTube video and the same creative on Instagram to compare."))
+        st.info(t("고객사 유튜브 영상과 같은 소재의 인스타그램 링크를 둘 다 넣어야 비교할 수 있습니다.",
+                  "Add both the client's YouTube video and the same creative on Instagram to compare."))
         return
-    st.caption(t("고객사 YouTube vs 고객사 Instagram (동일 소재) · 로그인 없이 공개된 지표만 사용",
-                 "Client YouTube vs client Instagram (same creative) · public metrics only, no login"))
+    st.caption(t("같은 소재를 올린 고객사 유튜브와 인스타그램의 공개 지표를 나란히 놓았습니다.",
+                 "The same creative on the client's YouTube and Instagram, side by side on public metrics."))
 
     data = {slot_name(s, m): (s, m, _metrics(m)) for s, m in own}
     grid = [st.columns(3), st.columns(3)]
@@ -75,9 +75,7 @@ def render():
         for name in missing:
             col.caption(f"⚠️ {name}: {t(reason_ko, reason_en)}")
 
-    st.caption(t("⚠️ 두 게시물 모두 댓글 이벤트 게시물이라 댓글 수가 자연 반응보다 부풀려져 있습니다. "
-                 "YouTube 구독자 수는 페이지 표시값(예: 47.8만) 기준 반올림 수치이며, 일평균은 게시일부터 오늘까지 기준입니다. "
-                 "조회수 기반 참여율은 Instagram 재생수를 로그인 없이 받을 수 없어 비교하지 않습니다.",
-                 "⚠️ Both posts ran comment contests, so comment counts are inflated versus organic response. "
-                 "YouTube subscriber counts are rounded display values, and daily averages run from the post date to today. "
-                 "View-based engagement rate isn't compared because Instagram plays aren't available without login."))
+    st.caption(t("댓글 이벤트를 한 게시물은 댓글 수가 평소보다 많게 나올 수 있습니다. 구독자 수는 '47.8만'처럼 반올림된 표시값이고, "
+                 "일평균은 게시일부터 오늘까지로 계산했습니다. 인스타그램 재생수는 로그인 없이 볼 수 없어 조회수 기준 참여율은 비교하지 않았습니다.",
+                 "Posts with comment contests can show more comments than usual. Subscriber counts are rounded display values, and daily "
+                 "averages run from the post date to today. Instagram plays need a login, so view-based engagement isn't compared."))

@@ -67,3 +67,28 @@ def fetch_youtube_comments(video_id: str, limit: int = 500, sort: str = "최신�
     df = anonymize(df)
     df.attrs["fetched_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return df
+
+
+def from_csv(src, video_id: str | None = None) -> pd.DataFrame:
+    """외부 도구(예: TheYouTubeTool.com)로 내려받은 댓글 CSV → 대시보드 댓글 형식 (작성자 정보는 익명화).
+
+    필요한 열: Comment, Date (선택: Type, Author Channel ID, Likes, Comment URL). video_id를 주면 그 영상 댓글만 남긴다.
+    """
+    raw = pd.read_csv(src)
+    if "Comment" not in raw.columns or "Date" not in raw.columns:
+        raise CommentError(t("CSV에 'Comment', 'Date' 열이 필요합니다.", "The CSV needs 'Comment' and 'Date' columns."))
+    if video_id and "Comment URL" in raw.columns:
+        raw = raw[raw["Comment URL"].astype(str).str.contains(f"v={video_id}", regex=False)]
+    url = raw.get("Comment URL", pd.Series("", index=raw.index)).astype(str)
+    df = pd.DataFrame({
+        "cid": url.str.extract(r"lc=([\w.-]+)")[0].fillna(pd.Series(raw.index.astype(str), index=raw.index)),
+        "text": raw["Comment"].fillna("").astype(str),
+        "channel": raw.get("Author Channel ID"),
+        "votes": pd.to_numeric(raw.get("Likes", 0), errors="coerce").fillna(0).astype(int),
+        "date": pd.to_datetime(raw["Date"].astype(str).str.replace(r"\.\s*", "-", regex=True).str.strip("-"),
+                               errors="coerce").dt.normalize(),
+        "is_reply": raw.get("Type", pd.Series("Comment", index=raw.index)).astype(str).str.lower().eq("reply"),
+    })
+    df = anonymize(df.drop_duplicates("cid"))
+    df.attrs["fetched_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " (CSV)"
+    return df

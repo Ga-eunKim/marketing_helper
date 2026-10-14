@@ -1,6 +1,39 @@
 {
-  "_설명": "고객사별 기본 설정. 고객사를 선택하면 경쟁사·URL이 자동으로 채워집니다(첫 번째 고객사가 기본값). 타 매체 URL이 비어 있으면 '타 플랫폼 성과 비교' 섹션을 숨깁니다. URL은 YouTube 영상, YouTube 채널(@핸들), Instagram 게시물을 지원합니다. category_baseline: 반사실 분석(BSTS)의 통제 변수로 쓰는 업종 카테고리 검색어(최대 4개). promo_events: 고객사 또는 경쟁사로 선택되면 검색 관심도 섹션에 '이벤트가 없었다면' 반사실 분석을 표시할 회사별 이벤트 (keywords로 이벤트 기간을 찾음, min_window_days는 하루짜리 급등 이벤트의 최소 분석 기간). label_ko: KOR 반사실 제목에 들어갈 이벤트 표현. names_en: ENG 화면용 회사 영문명.",
+  "_설명": "고객사별 기본 설정. 고객사를 선택하면 경쟁사·URL이 자동으로 채워집니다(첫 번째 고객사가 기본값). 타 매체 URL이 비어 있으면 '타 플랫폼 성과 비교' 섹션을 숨깁니다. URL은 YouTube 영상, YouTube 채널(@핸들), Instagram 게시물을 지원합니다. category_baseline: 반사실 분석(BSTS)의 통제 변수로 쓰는 업종 카테고리 검색어(최대 4개). promo_events: 고객사 또는 경쟁사로 선택되면 검색 관심도 섹션에 '이벤트가 없었다면' 반사실 분석을 표시할 회사별 이벤트 (keywords로 이벤트 기간을 찾음, min_window_days는 하루짜리 급등 이벤트의 최소 분석 기간). label_ko: KOR 반사실 제목에 들어갈 이벤트 표현. names_en: ENG 화면용 회사 영문명. page: 'game'이면 게임 캠페인 전용 페이지(스토어 리뷰 프록시·반사실 분석·댓글 테마). game: 앱 ID, store_scope(global=10개 언어 리뷰 합산 / kr=한국어), geo(''=전 세계, 'KR'), 검색어, 경쟁작·시장 검색어(통제군), 캠페인 기간(campaign_start~end), 학습/표시 기간(pre_days/post_days), 댓글 수집 개수.",
   "clients": {
+    "데브시스터즈": {
+      "competitor": "MONOPOLY GO!",
+      "page": "game",
+      "urls": {
+        "main": "https://youtu.be/M_tFO32h90Q?si=5d8OGCQxs5und0EF",
+        "competitor": "https://www.youtube.com/watch?v=sXkCo-BiZKo",
+        "other": "https://www.instagram.com/reel/DEd5LECs7RW/"
+      },
+      "game": {
+        "app_id": "com.devsisters.ck",
+        "app_name": "쿠키런: 킹덤",
+        "app_name_en": "CookieRun: Kingdom",
+        "search_term": "Cookie Run Kingdom",
+        "rival_terms": [
+          "Monopoly Go",
+          "Pokemon TCG Pocket"
+        ],
+        "market_term": "mobile game",
+        "campaign_name": "4주년 메가 크리에이터 캠페인",
+        "campaign_name_en": "4th Anniversary Mega-Creator Campaign",
+        "campaign_start": "2025-01-06",
+        "campaign_end": "2025-02-02",
+        "pre_days": 120,
+        "post_days": 30,
+        "comment_limit": 3000,
+        "store_scope": "global",
+        "geo": "",
+        "rival_names": [
+          "MONOPOLY GO!",
+          "Pokémon TCG Pocket"
+        ]
+      }
+    },
     "LG전자": {
       "competitor": "삼성전자",
       "urls": {
@@ -45,7 +78,11 @@
     "LG전자": "LG Electronics",
     "삼성전자": "Samsung Electronics",
     "LG유플러스": "LG U+",
-    "SK텔레콤": "SK Telecom"
+    "SK텔레콤": "SK Telecom",
+    "데브시스터즈": "Devsisters",
+    "가디언 테일즈": "Guardian Tales",
+    "MONOPOLY GO!": "MONOPOLY GO!",
+    "Pokémon TCG Pocket": "Pokémon TCG Pocket"
   },
   "promo_events": {
     "삼성전자": {

@@ -5,9 +5,9 @@
 import streamlit as st
 
 from core import i18n
-from core.config import SLOTS, clients, companies
+from core.config import SLOTS, clients, companies, page_type
 from core.i18n import t
-from views import brand_tab, dslasso_tab, overview, platform_tab, trends_tab
+from views import brand_tab, dslasso_tab, game_page, overview, platform_tab, trends_tab
 from views.common import apply_preset, connect_all, init_state
 
 st.set_page_config(page_title="Campaign Performance Dashboard", page_icon="📊", layout="wide",
@@ -61,9 +61,10 @@ def top_bar():
     with st.container(key="topbar"):
         c0, c1, c2 = st.columns([5, 2, 1])
         c0.markdown(t("### 📊 구글 광고 캠페인 효과 측정·비교", "### 📊 Google Ads Campaign Effectiveness & Benchmarking"))
-        period = c1.date_input(t("분석 기간", "Date range"), ss.period, key="period_sel")
-        if isinstance(period, (tuple, list)) and len(period) == 2:
-            ss.period = tuple(period)
+        if page_type(ss.client) != "game":  # 게임 페이지는 캠페인 기준 분석 기간을 자체로 사용
+            period = c1.date_input(t("분석 기간", "Date range"), ss.period, key="period_sel")
+            if isinstance(period, (tuple, list)) and len(period) == 2:
+                ss.period = tuple(period)
         # 라벨이 언어에 따라 바뀌면 Streamlit이 새 위젯으로 보고 기본값(ENG)으로 되돌리므로 라벨은 고정
         choice = c2.segmented_control("Language / 언어", ["ENG", "KOR"], default="ENG", key="lang_sel")
         if choice:
@@ -73,9 +74,14 @@ def top_bar():
 sidebar()
 top_bar()
 # 탭 대신 위에서 아래로 이어지는 섹션
-sections = [trends_tab, overview, brand_tab, dslasso_tab]
-if (ss.urls.get("other") or "").strip():  # 타 매체 URL이 없는 고객사는 타 플랫폼 비교를 숨김
-    sections.insert(2, platform_tab)
+if page_type(ss.client) == "game":  # 게임 캠페인 전용 페이지 (clients.json의 page: "game") + 채널 비교·댓글 분석
+    sections = [game_page, brand_tab]
+    if (ss.urls.get("other") or "").strip():
+        sections.insert(1, platform_tab)
+else:
+    sections = [trends_tab, overview, brand_tab, dslasso_tab]
+    if (ss.urls.get("other") or "").strip():  # 타 매체 URL이 없는 고객사는 타 플랫폼 비교를 숨김
+        sections.insert(2, platform_tab)
 for i, section in enumerate(sections):
     if i:
         st.divider()

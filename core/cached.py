@@ -28,6 +28,15 @@ def comments_if_cached(video_id: str, limit: int, sort: str) -> pd.DataFrame | N
     return cache.get("comments", (video_id, limit, sort))
 
 
+def comments_any(video_id: str, limit: int, sort: str) -> pd.DataFrame | None:
+    """요청한 설정의 캐시가 없으면 같은 영상의 다른 저장분(예: CSV로 불러온 3,000개 설정)을 대신 사용."""
+    for key in [(limit, sort), (3000, "최신순"), (500, "최신순"), (2000, "최신순"), (500, "인기순")]:
+        hit = cache.get("comments", (video_id, *key))
+        if hit is not None and len(hit):
+            return hit
+    return None
+
+
 def image(url: str) -> bytes | None:
     def _get():
         r = requests.get(url, headers=uc.HEADERS, timeout=10)
