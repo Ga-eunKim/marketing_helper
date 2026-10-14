@@ -218,10 +218,8 @@ Comments are classified with a Korean/English keyword list."""))
 
     # ── Tier 2: 반사실 시계열 ─────────────────────────────────────────────
     st.markdown(t("##### 캠페인이 없었다면 리뷰는 얼마나 달렸을까", "##### Store reviews vs. a no-campaign baseline"))
-    st.caption(t("원래 보고 싶었던 건 다운로드(설치) 수지만, 공개된 데이터로는 알 수 없어서 스토어에 새로 달린 리뷰 수를 대신 썼습니다. "
-                 "리뷰는 설치한 유저 중 일정 비율이 남기기 때문에 다운로드 흐름을 따라 움직입니다.",
-                 "What we really want is downloads (installs), but they aren't publicly available, so new store reviews stand in for them. "
-                 "A steady share of new installers leave a review, so reviews track the download trend."))
+    st.caption(t("원래 보고 싶었던 건 다운로드(설치) 수지만, 공개된 데이터로는 알 수 없어서 스토어에 새로 달린 리뷰 수를 대신 썼습니다.",
+                 "What we really want is downloads (installs), but they aren't publicly available, so new store reviews stand in for them."))
     if impact:
         st.plotly_chart(_causal_chart(impact, t("실제 일별 스토어 리뷰", "Actual daily store reviews")), use_container_width=True)
         st.caption(t(f"캠페인 기간에는 하루 평균 {impact['avg_actual']:.0f}건의 리뷰가 달렸습니다. 캠페인이 없었다면 {impact['avg_pred']:.0f}건 정도였을 것으로 보여, "

@@ -50,8 +50,6 @@ def render():
         st.info(t("고객사 유튜브 영상과 같은 소재의 인스타그램 링크를 둘 다 넣어야 비교할 수 있습니다.",
                   "Add both the client's YouTube video and the same creative on Instagram to compare."))
         return
-    st.caption(t("같은 소재를 올린 고객사 유튜브와 인스타그램의 공개 지표를 나란히 놓았습니다.",
-                 "The same creative on the client's YouTube and Instagram, side by side on public metrics."))
 
     data = {slot_name(s, m): (s, m, _metrics(m)) for s, m in own}
     grid = [st.columns(3), st.columns(3)]

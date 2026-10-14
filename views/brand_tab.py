@@ -165,27 +165,32 @@ def render():
             st.dataframe(pivot, hide_index=True, width="stretch",
                          column_config={c: st.column_config.NumberColumn(format="percent") for c in pivot.columns if c != campaign_col})
             small = [m for m in metas if m[t("분석 댓글", "Analyzed")] < 100]
+            names = ", ".join(m[t("영상", "Video")] for m in small)
+            counts = "·".join(f"{m[t('분석 댓글', 'Analyzed')]}" for m in small)
+            names_en = ", ".join(f"{m[t('영상', 'Video')]} ({m[t('분석 댓글', 'Analyzed')]})" for m in small)
             st.caption(t("댓글을 직접 남긴 시청자 기준이라 실제 구매와는 다를 수 있습니다. 막대 위 선은 95% 신뢰구간입니다."
-                         + (" 댓글이 100개 미만인 영상은 차이를 방향 정도로만 보세요." if small else ""),
+                         + (f" {names} 영상은 댓글이 {counts}개뿐이라 몇 개만 달라져도 비율이 크게 흔들리니, 수치보다는 경향만 참고해 주세요."
+                            if small else ""),
                          "Based on viewers who chose to comment, so it may not match actual purchases. Lines on the bars show 95% intervals."
-                         + (" Treat differences for videos with under 100 comments as directional only." if small else "")))
+                         + (f" {names_en} has few comments, so a handful more or less can swing the rates — read it as a rough signal, not exact numbers."
+                            if small else "")))
 
-        with st.expander(t("대표 댓글 보기", "Sample comments")):
-            vids = [(s, m, tg) for s, m, tg in tagged_all.values() if not tg.empty]
-            vtabs = st.tabs([slot_name(s, m) for s, m, _ in vids]) if vids else []
-            for vtab, (s, m, tagged) in zip(vtabs, vids):
-                with vtab:
-                    tabs = st.tabs([label for _, label in indicators] + [t("부정", "Negative"), t("자주 나온 단어", "Top words")])
-                    for tab, (col, _) in zip(tabs, indicators + [("negative", "")]):
-                        ex = tagged[tagged[col]].sort_values("votes", ascending=False).head(5)
-                        with tab:
-                            if ex.empty:
-                                st.caption(t("해당 댓글이 없습니다.", "No matching comments."))
-                            for r in ex.itertuples():
-                                st.markdown(f"> {r.text[:200]}  \n<span style='color:gray;font-size:12px'>👍 {r.votes}</span>",
-                                            unsafe_allow_html=True)
-                    with tabs[-1]:
-                        st.dataframe(ta.top_terms(tagged["text"]), hide_index=True)
+        st.markdown(t("**대표 댓글**", "**Sample comments**"))  # 펼친 상태로 항상 표시
+        vids = [(s, m, tg) for s, m, tg in tagged_all.values() if not tg.empty]
+        vtabs = st.tabs([slot_name(s, m) for s, m, _ in vids]) if vids else []
+        for vtab, (s, m, tagged) in zip(vtabs, vids):
+            with vtab:
+                tabs = st.tabs([label for _, label in indicators] + [t("부정", "Negative"), t("자주 나온 단어", "Top words")])
+                for tab, (col, _) in zip(tabs, indicators + [("negative", "")]):
+                    ex = tagged[tagged[col]].sort_values("votes", ascending=False).head(5)
+                    with tab:
+                        if ex.empty:
+                            st.caption(t("해당 댓글이 없습니다.", "No matching comments."))
+                        for r in ex.itertuples():
+                            st.markdown(f"> {r.text[:200]}  \n<span style='color:gray;font-size:12px'>👍 {r.votes}</span>",
+                                        unsafe_allow_html=True)
+                with tabs[-1]:
+                    st.dataframe(ta.top_terms(tagged["text"]), hide_index=True)
 
         with st.expander(t("수집 정보", "Data details")):
             st.dataframe(pd.DataFrame(metas), hide_index=True, width="stretch")
