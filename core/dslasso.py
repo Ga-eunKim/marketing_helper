@@ -18,7 +18,7 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-from .i18n import t
+from .i18n import josa, t
 
 MIN_OBS = 20
 DATE_COLS = ("date", "day", "week", "날짜", "일자", "주")
@@ -144,31 +144,31 @@ def run(df: pd.DataFrame, target: str, controls: list[str], candidates: list[str
 
 
 def diagnostics(res: dict) -> list[str]:
-    """해석 주의사항 (현재 화면 언어로)."""
+    """해석할 때 주의할 점 (현재 화면 언어로)."""
     warns = []
     high = res["vif"][res["vif"]["VIF"] > 10]
     if len(high):
-        items = ", ".join(f"{v}({x:.1f})" for v, x in zip(high["var"], high["VIF"]))
-        warns.append(t(f"다중공선성 주의 (VIF>10): {items}", f"Multicollinearity warning (VIF>10): {items}"))
+        names = ", ".join(high["var"])
+        vifs = ", ".join(f"{x:.1f}" for x in high["VIF"])
+        warns.append(t(f"{names}{josa(names, '은/는')} 서로 많이 겹쳐서(VIF {vifs}) 각각의 효과를 깔끔하게 나누기 어렵습니다. 합쳐서 보는 편이 안전합니다.",
+                       f"{names} overlap heavily (VIF {vifs}), so their separate effects are hard to tell apart. Reading them together is safer."))
     if res["n"] < 50:
-        warns.append(t(f"표본 수 {res['n']}개 — 신뢰구간이 넓고 결과 변동성이 큽니다.",
-                       f"Sample size {res['n']} — wide confidence intervals and volatile results."))
+        warns.append(t(f"데이터가 {res['n']}개뿐이라 결과가 크게 흔들릴 수 있습니다.",
+                       f"Only {res['n']} data points, so results can swing a lot."))
     dw = res["dw"]
     if dw < 1.5 or dw > 2.5:
-        warns.append(t(f"잔차 자기상관 의심 (Durbin-Watson={dw:.2f}) — 시계열 데이터라면 표준오차가 과소추정될 수 있습니다.",
-                       f"Possible residual autocorrelation (Durbin-Watson={dw:.2f}) — standard errors may be understated for time-series data."))
+        warns.append(t(f"남은 오차가 시점끼리 이어지는 패턴이 보여서(Durbin-Watson {dw:.2f}) 실제보다 확실해 보일 수 있습니다.",
+                       f"The leftover errors follow a pattern over time (Durbin-Watson {dw:.2f}), so results may look more certain than they are."))
     return warns
 
 
-_ASSUMPTIONS_KO = """- **분석 가정**: 선형·가법 관계, 선택된 통제변수 외 관측되지 않은 교란이 없음(조건부 독립), 변수 측정 오차가 작음.
-- **해석 한계**: 본 결과는 관측 데이터 기반 **연관성(조건부 증분) 추정**이며 인과관계를 확정하지 않습니다. 실험(지역 홀드아웃·지오 실험 등)으로 검증을 권장합니다.
-- **DS-LASSO 특성**: 변수 선택은 교차검증 정규화 강도에 따라 달라질 수 있으며, 표본이 작을수록 선택 결과가 불안정합니다.
-- **시계열 주의**: 주 단위 데이터의 계절성·추세·이월 효과(애드스톡)는 별도 변수로 넣지 않으면 반영되지 않습니다."""
+_ASSUMPTIONS_KO = """이 결과는 실험이 아니라 쌓여 있던 데이터에서 찾은 관계라서, 캠페인 때문에 판매가 늘었다고 단정할 수는 없습니다. 고른 통제변수 말고 다른 숨은 요인이 없고, 각 요인의 영향이 대체로 일정하다고 가정했습니다.
 
-_ASSUMPTIONS_EN = """- **Assumptions**: linear, additive effects; no unobserved confounders beyond the selected controls (conditional independence); low measurement error.
-- **Interpretation**: these are **observational, conditional incrementality estimates**, not proof of causality. Validate with experiments (geo holdouts / geo-lift tests).
-- **DS-LASSO behavior**: variable selection depends on the cross-validated regularization strength and is less stable with small samples.
-- **Time series**: seasonality, trend and carryover (adstock) effects are not captured unless added as variables."""
+변수 선택은 데이터가 적을수록 흔들릴 수 있고, 계절성이나 광고의 이월 효과(애드스톡)는 따로 변수로 넣지 않으면 반영되지 않습니다. 확실히 하려면 지역별로 캠페인을 끄고 켜 보는 실험(지오 테스트)으로 확인하는 게 좋습니다."""
+
+_ASSUMPTIONS_EN = """These are relationships found in historical data, not an experiment, so they don't prove the campaign caused the sales. The analysis assumes there are no hidden factors beyond the chosen controls and that each factor's effect stays roughly constant.
+
+Variable selection can shift with small samples, and seasonality or ad carryover (adstock) isn't captured unless added as variables. A geo test — switching the campaign on and off by region — is the way to confirm."""
 
 
 def assumptions() -> str:

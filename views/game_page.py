@@ -16,7 +16,7 @@ from core import comments as cm
 from core import trends as tr
 from core.charts import SERIES, style
 from core.config import game_config
-from core.i18n import t
+from core.i18n import pval, t
 from views.common import connected_slots, image_bytes, slot_name
 
 GREEN, GREEN_2, GRAY, RED, BLUE = "#008300", "#1baf7a", "#9ca3af", "#e34948", SERIES[0]
@@ -184,7 +184,7 @@ def render():
         c0.info(t("댓글 데이터가 없어 건강도 지수를 계산하지 못했습니다.", "No comment data yet — health index unavailable."))
     if impact:
         c1.metric(t("스토어 유입 증분", "Incremental store lift"), f"{impact['rel_effect']:+.1%}",
-                  t(f"p = {impact['p']:.3f}", f"p = {impact['p']:.3f}"), delta_color="off")
+                  t(f"p {pval(impact['p'])}", f"p {pval(impact['p'])}"), delta_color="off")
         rating = game.iroas_rating(impact["rel_effect"], impact["p"])
         c3.metric(t("프록시 iROAS 평가", "Proxy iROAS rating"), t(*IROAS[rating]),
                   t("집행비 대신 증분 크기와 유의성으로 판단", "Graded on lift and significance (no spend data)"),
@@ -223,9 +223,9 @@ Comments are classified with a Korean/English keyword list."""))
     if impact:
         st.plotly_chart(_causal_chart(impact, t("실제 일별 스토어 리뷰", "Actual daily store reviews")), use_container_width=True)
         st.caption(t(f"캠페인 기간에는 하루 평균 {impact['avg_actual']:.0f}건의 리뷰가 달렸습니다. 캠페인이 없었다면 {impact['avg_pred']:.0f}건 정도였을 것으로 보여, "
-                     f"기간 전체로 약 {impact['cum_effect']:,.0f}건이 더 달린 셈입니다 (95% 구간 {impact['cum_lo']:,.0f}–{impact['cum_hi']:,.0f}건, p = {impact['p']:.3f}).",
+                     f"기간 전체로 약 {impact['cum_effect']:,.0f}건이 더 달린 셈입니다 (95% 구간 {impact['cum_lo']:,.0f}–{impact['cum_hi']:,.0f}건, p {pval(impact['p'])}).",
                      f"The store averaged {impact['avg_actual']:.0f} reviews a day during the campaign, versus about {impact['avg_pred']:.0f} expected without it — "
-                     f"roughly {impact['cum_effect']:,.0f} extra reviews over the period (95% interval {impact['cum_lo']:,.0f}–{impact['cum_hi']:,.0f}, p = {impact['p']:.3f})."))
+                     f"roughly {impact['cum_effect']:,.0f} extra reviews over the period (95% interval {impact['cum_lo']:,.0f}–{impact['cum_hi']:,.0f}, p {pval(impact['p'])})."))
         with st.expander(t("어떻게 계산했나요?", "How was this calculated?")):
             ctrl = ", ".join(c for c in td.columns if c != cfg["search_term"])
             glob = cfg.get("store_scope") == "global"

@@ -56,7 +56,7 @@ def _fmt(metric: str, v) -> str:
 
 
 def render():
-    st.markdown(t("#### 캠페인 링크 연동 결과", "#### Campaign Overview"))
+    st.markdown(t("#### 고객사와 경쟁사 캠페인 영상", "#### Client vs. Competitor Campaign Videos"))
     shown = [(s, st.session_state.slots.get(s["key"])) for s in SLOTS]
     shown = [(s, m) for s, m in shown if not _is_instagram(s, m)]
     cols = st.columns(len(shown) or 1)
@@ -67,8 +67,8 @@ def render():
     yt = [(s, m) for s, m in connected_slots("YouTube") if m.get("kind") != "channel"]
     for s, m in connected_slots("YouTube"):
         if m.get("kind") == "channel":
-            st.caption(t(f"ℹ️ {slot_name(s, m)}: 채널 URL이라 영상 단위 지표는 표에서 제외했습니다.",
-                         f"ℹ️ {slot_name(s, m)}: channel URL — video-level metrics are excluded from the table."))
+            st.caption(t(f"{slot_name(s, m)}는 채널 URL이라 표에서 뺐습니다.",
+                         f"{slot_name(s, m)} is a channel URL, so it's left out of the table."))
     if yt:
         rows = {slot_name(s, m): nz.link_metrics_row(slot_name(s, m), m) for s, m in yt}
         df = pd.DataFrame({name: [_fmt(k, row[k]) for k, _, _ in ROWS] for name, row in rows.items()},

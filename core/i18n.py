@@ -52,3 +52,16 @@ def rel_time(s: str | None) -> str:
         return s
     n, unit = int(m.group(1)), _REL[m.group(2)]
     return f"{n} {unit}{'s' if n != 1 else ''} ago"
+
+
+def josa(word: str, pair: str) -> str:
+    """받침에 맞는 조사 — pair는 '이/가', '은/는', '을/를', '과/와'. 한글이 아니면 '이(가)'처럼 둘 다."""
+    a, b = pair.split("/")
+    ch = word.strip()[-1:] if word.strip() else ""
+    if "가" <= ch <= "힣":
+        return a if (ord(ch) - 0xAC00) % 28 else b
+    return f"{a}({b})"
+
+
+def pval(p: float) -> str:
+    return "< 0.001" if p < 0.001 else f"= {p:.3f}"

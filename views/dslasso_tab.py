@@ -10,7 +10,7 @@ import streamlit as st
 
 from core import cached, dslasso, store
 from core.charts import SERIES, style
-from core.i18n import lang, t
+from core.i18n import josa, lang, pval, t
 
 SAMPLE = Path(__file__).resolve().parent.parent / "sample_data" / "sample_weekly_model.csv"
 # 샘플 변수명 (KOR → ENG 마케팅 용어)
@@ -61,8 +61,8 @@ def _load_data() -> tuple[pd.DataFrame | None, str, bool]:
             st.caption(t("🔧 UTF-8 인코딩, 쉼표 구분, 첫 행 = 열 이름인지 확인하세요.",
                          "🔧 Check that it's UTF-8, comma-separated, with column names in the first row."))
             return None, "", False
-    st.caption(t("⚠️ 샘플은 기능 시연용 **가상 데이터**입니다. 실제 분석에는 고객사 판매·통제변수 데이터를 업로드하세요.",
-                 "⚠️ The sample is **synthetic data** for demo purposes. Upload the client's sales and control data for a real analysis."))
+    st.caption(t("샘플은 화면을 보여주기 위해 만든 가상 데이터입니다. 실제 분석은 고객사 판매 데이터를 올려서 해 주세요.",
+                 "The sample is made-up data to show how this works. Upload the client's sales data for a real analysis."))
     raw = pd.read_csv(SAMPLE)
     if lang() == "EN":
         raw = raw.rename(columns=SAMPLE_EN)
@@ -96,7 +96,9 @@ def forest(table: pd.DataFrame) -> go.Figure:
 
 
 def render():
-    st.markdown(t("#### DS-LASSO 기반 증분 효과 분석", "#### Incremental Lift Analysis (DS-LASSO)"))
+    st.markdown(t("#### 무엇이 판매를 끌어올렸을까 (DS-LASSO)", "#### What Actually Drove Sales? (DS-LASSO)"))
+    st.caption(t("날씨, 이사철, 경쟁사 할인 같은 바깥 요인을 걸러낸 뒤 캠페인 지표가 판매에 얼마나 보탰는지 추정합니다.",
+                 "Filters out outside factors like weather, moving season and competitor discounts, then estimates how much each campaign metric added to sales."))
     raw, src, is_sample = _load_data()
     if raw is None:
         return
@@ -108,7 +110,7 @@ def render():
     num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     k = lang()  # 언어별로 위젯 키를 나눠 선택지(변수명) 변경 시 충돌 방지
 
-    st.markdown(t("**1. 변수 역할 확인·수정**", "**1. Model setup**"))
+    st.markdown(t("**변수 고르기**", "**Choose variables**"))
     c1, c2, c3 = st.columns([2, 4, 3])
     tgt_default = _name(SAMPLE_ROLES["target"])
     target = c1.selectbox(t("타깃 변수 (판매량·전환)", "Target KPI (sales / conversions)"), num_cols,
@@ -131,7 +133,7 @@ def render():
     st.session_state.dsl_period_val = period
     sub = df.loc[str(period[0]):str(period[1])]
 
-    st.markdown(t("**2. 실행 전 데이터 검증**", "**2. Data validation**"))
+    st.markdown(t("**데이터 점검**", "**Data check**"))
     errors, warns = dslasso.precheck(sub, target, controls, candidates)
     for e in errors:
         st.error(e)
@@ -139,8 +141,8 @@ def render():
         st.warning(w)
     if not errors:
         n_obs = len(sub[[target] + controls + candidates].dropna())
-        st.success(t(f"검증 통과 · 관측치 {n_obs}개 · 기간 {period[0]} ~ {period[1]}",
-                     f"Validation passed · {n_obs} observations · {period[0]} ~ {period[1]}"))
+        st.success(t(f"분석할 수 있습니다. {period[0]}부터 {period[1]}까지 {n_obs}개 시점을 씁니다.",
+                     f"Ready to run — {n_obs} data points from {period[0]} to {period[1]}."))
 
     meta = {"target": target, "controls": controls, "candidates": candidates, "source": src,
             "period_sel": f"{period[0]} ~ {period[1]}"}
@@ -153,8 +155,8 @@ def render():
                               "client": st.session_state.client, "target": target, "n": res["n"],
                               "candidates": candidates, "source": src, "period": res["period_sel"]})
         if prev:
-            st.info(t(f"동일 입력 데이터(버전 {res['version']})의 {len(prev) + 1}번째 실행입니다 — 실행 시각을 기록했습니다.",
-                      f"Run #{len(prev) + 1} on identical input (version {res['version']}) — run time logged."))
+            st.info(t(f"같은 데이터로 {len(prev) + 1}번째 실행했습니다. 실행 시각은 이력에 남겨 두었어요.",
+                      f"Run #{len(prev) + 1} on the same data — logged in the run history."))
     elif not errors and (st.session_state.dsl is None or st.session_state.dsl.get("target") != target):
         hit = cached.dsl_if_cached(sub, target, controls, candidates)  # 같은 입력의 저장된 결과 자동 표시
         st.session_state.dsl = dict(hit, **meta) if hit is not None else None
@@ -162,32 +164,33 @@ def render():
     res = st.session_state.dsl
     if not res:
         return
-    st.markdown(t(f"**3. 결과** · 버전 `{res['version']}` · 실행 {res['run_at']} · n={res['n']} · R²={res['r2']:.3f} · "
-                  f"기간 {res['period_sel']} · 데이터 {res['source']}",
-                  f"**3. Results** · version `{res['version']}` · run {res['run_at']} · n={res['n']} · R²={res['r2']:.3f} · "
-                  f"window {res['period_sel']} · data {res['source']}"))
     table = res["table"]
-    num_cfg = {t(ko, en): st.column_config.NumberColumn(format="%.4g")
-               for k_, ko, en in COLS if k_ in ("estimate", "se", "p", "ci_lo", "ci_hi")}
-    st.dataframe(_display_table(table), hide_index=True, width="stretch", column_config=num_cfg)
-
-    st.markdown(t("**4. 통제변수 반영 후 캠페인 후보 지표의 증분 효과**", "**4. Incremental lift of media drivers (after controls)**"))
+    st.markdown(t("**결과**", "**Results**"))
     st.plotly_chart(forest(table), use_container_width=True)
     for r in table[table["role"] == "candidate"].to_dict("records"):
-        sig = t(*SIG_LABEL[r["sig"]])
-        st.markdown(t(f"- **{r['var']}** 1단위 증가 시 {res['target']} **{r['estimate']:+,.3g}** "
-                      f"(95% CI {r['ci_lo']:,.3g} ~ {r['ci_hi']:,.3g}, p={r['p']:.3g}) → {sig}",
-                      f"- **{r['var']}**: +1 unit → {res['target']} **{r['estimate']:+,.3g}** "
-                      f"(95% CI {r['ci_lo']:,.3g} to {r['ci_hi']:,.3g}, p={r['p']:.3g}) → {sig}"))
+        up = r["estimate"] >= 0
+        verdict = {"sig05": t("믿을 만한 결과입니다", "a reliable result"),
+                   "sig10": t("어느 정도 근거가 있습니다", "some evidence"),
+                   "ns": t("우연일 가능성을 배제하기 어렵습니다", "could easily be chance")}.get(r["sig"], "")
+        st.markdown(t(f"- **{r['var']}**{josa(r['var'], '이/가')} 1 늘 때 {res['target']}{josa(res['target'], '은/는')} 약 "
+                      f"**{abs(r['estimate']):,.3g} {'늘었' if up else '줄었'}습니다** "
+                      f"(95% 구간 {r['ci_lo']:,.3g} ~ {r['ci_hi']:,.3g}, p {pval(r['p'])}). {verdict}.",
+                      f"- Each +1 in **{r['var']}** came with about **{abs(r['estimate']):,.3g} {'more' if up else 'less'}** {res['target']} "
+                      f"(95% interval {r['ci_lo']:,.3g} to {r['ci_hi']:,.3g}, p {pval(r['p'])}) — {verdict}."))
+    st.caption(t(f"관측치 {res['n']}개 · 설명력 R² {res['r2']:.2f} · 기간 {res['period_sel']} · 데이터 {res['source']} · 실행 {res['run_at']} (버전 {res['version']})",
+                 f"{res['n']} data points · R² {res['r2']:.2f} · {res['period_sel']} · data: {res['source']} · run {res['run_at']} (version {res['version']})"))
+    num_cfg = {t(ko, en): st.column_config.NumberColumn(format="%.4g")
+               for k_, ko, en in COLS if k_ in ("estimate", "se", "p", "ci_lo", "ci_hi")}
+    with st.expander(t("전체 결과 표", "Full results table")):
+        st.dataframe(_display_table(table), hide_index=True, width="stretch", column_config=num_cfg)
 
-    st.markdown(t("**5. 해석 주의사항**", "**5. Caveats**"))
-    for w in dslasso.diagnostics(res) or [t("특이 경고 없음 (그래도 아래 가정과 한계를 확인하세요)",
-                                            "No specific warnings (still review the assumptions and limitations below)")]:
+    st.markdown(t("**해석할 때 주의할 점**", "**Things to keep in mind**"))
+    for w in dslasso.diagnostics(res):
         st.warning(w)
-    with st.expander(t("다중공선성 (VIF)", "Multicollinearity (VIF)")):
+    with st.expander(t("변수끼리 겹치는 정도 (VIF)", "How much variables overlap (VIF)")):
         st.dataframe(res["vif"].rename(columns={"var": t("변수", "Variable")}).replace([np.inf], np.nan), hide_index=True)
     st.info(dslasso.assumptions())
 
-    with st.expander(t("실행 이력 (현재 고객사)", "Run history (current client)")):
+    with st.expander(t("실행 이력", "Run history")):
         runs = [r for r in store.load("runs", default=[]) if r.get("client") == st.session_state.client]
         st.dataframe(pd.DataFrame(runs[::-1]), hide_index=True, width="stretch")

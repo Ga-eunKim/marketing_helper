@@ -135,41 +135,42 @@ def _counterfactual(start, end, geo: str, uploads: list[tuple[dict, dict, list[d
 
     sig = r["p"] < 0.05
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("실제 평균 (이벤트 기간)", "Actual avg. (event window)"), f"{r['avg_actual']:.1f}")
-    c2.metric(t("예상 반응값 평균 (반사실)", "Counterfactual avg."), f"{r['avg_pred']:.1f}")
-    c3.metric(t("순수 효과 (평균)", "Causal impact (avg.)"), f"{r['abs_effect']:+.1f}", f"{r['rel_effect']:+.1%}",
+    c1.metric(t("이벤트 기간 실제 검색량", "Actual during the event"), f"{r['avg_actual']:.1f}")
+    c2.metric(t("이벤트가 없었다면", "Without the event"), f"{r['avg_pred']:.1f}")
+    c3.metric(t("차이", "Difference"), f"{r['abs_effect']:+.1f}", f"{r['rel_effect']:+.1%}",
               delta_color="off")
-    c4.metric(t("유의성 (p값)", "Significance (p-value)"), f"{r['p']:.3f}",
-              t("유의함 (p<0.05)", "Significant (p<0.05)") if sig else t("유의하지 않음", "Not significant"),
+    c4.metric(t("p값", "p-value"), f"{r['p']:.3f}" if r["p"] >= 0.001 else "< 0.001",
+              t("의미 있는 차이", "Meaningful difference") if sig else t("우연일 수 있음", "Could be chance"),
               delta_color="normal" if sig else "off")
-    st.caption(t(f"이벤트 기간 {w0:%Y-%m-%d} ~ {w1:%Y-%m-%d} ({r['post_days']}일) · 학습 구간 {r['pre_days']}일 · "
-                 f"누적 효과 {r['cum_effect']:+.0f} (95% 구간 {r['cum_lo']:+.0f} ~ {r['cum_hi']:+.0f})",
-                 f"Event window {w0:%Y-%m-%d} – {w1:%Y-%m-%d} ({r['post_days']} days) · training period {r['pre_days']} days · "
-                 f"cumulative impact {r['cum_effect']:+.0f} (95% interval {r['cum_lo']:+.0f} to {r['cum_hi']:+.0f})"))
+    lower = r["rel_effect"] < 0
+    st.caption(t(f"{w0:%Y.%m.%d}부터 {w1:%m.%d}까지 {r['post_days']}일 동안 {client} 검색량은 이벤트가 없었을 때의 예상보다 "
+                 f"{abs(r['rel_effect']):.0%} {'낮았습니다' if lower else '높았습니다'}. "
+                 + ("통계적으로도 의미 있는 차이입니다." if sig else "다만 우연히 생길 수 있는 범위 안이라 단정하기는 어렵습니다."),
+                 f"From {w0:%b %d} to {w1:%b %d, %Y} ({r['post_days']} days), {client_label} search interest was "
+                 f"{abs(r['rel_effect']):.0%} {'lower' if lower else 'higher'} than expected without the event. "
+                 + ("The difference is statistically meaningful." if sig else "That's within the range chance alone could produce, though.")))
 
-    with st.expander(t("분석 방법 · 해석 (BSTS · CausalImpact)", "Methodology & interpretation (BSTS · CausalImpact)")):
+    with st.expander(t("어떻게 계산했나요?", "How was this calculated?")):
         base = ", ".join(baseline)
         kws = ", ".join(ev["keywords"])
         min_days = ev.get("min_window_days", 7)
         st.markdown(t(
-            f"""- **예상 반응값(Counterfactual)**: 업종 카테고리 전체 트렌드({base} 검색량)를 통제 변수로 활용하여 이벤트 미발생 시의 {client} 검색량을 사후 예측함
-- **순수 효과(Causal Impact)**: [실제 관측값] − [모델 예측값]
-- **검증**: Posterior Tail-Area Probability (p < 0.05 기준)
-- **이벤트 기간**: '{kws}' 검색량(7일 이동평균)이 최고점의 25% 이상인 연속 구간을 자동 탐지 (하루짜리 급등이면 최소 {min_days}일). 이 키워드는 기간을 찾는 데만 쓰고 통제 변수에는 넣지 않음 (넣으면 효과를 모델이 흡수함)
-- **모델**: 로컬 레벨 + 주간 계절성 + 공변량 회귀의 구조 시계열(BSTS 구성)을 이벤트 이전 구간으로 학습. statsmodels 최대우도 추정과 시뮬레이션으로 구간·p값을 계산 (TensorFlow 기반 CausalImpact 패키지 대신 경량 구현)
-- **주의**: 같은 시기의 다른 이벤트(신제품 출시, 뉴스, 다른 프로모션)도 효과에 섞일 수 있으며, 검색 관심도는 매출·전환과 같은 지표가 아님""",
-            f"""- **Counterfactual**: uses the overall category trend ({base} searches) as control variables to predict what {client} search interest would have been without the event
-- **Causal impact**: [observed] − [model prediction]
-- **Validation**: posterior tail-area probability (p < 0.05)
-- **Event window**: auto-detected as the continuous period where '{kws}' searches (7-day average) stay above 25% of their peak (at least {min_days} days for one-day spikes). These terms only define the window and are not used as controls (as controls they would absorb the effect)
-- **Model**: structural time series with local level + weekly seasonality + covariate regression (the BSTS setup), trained on the pre-event period. Intervals and p-value come from statsmodels maximum-likelihood estimation and simulation (a lightweight alternative to the TensorFlow-based CausalImpact package)
-- **Caveats**: other concurrent events (product launches, news, other promotions) can mix into the effect, and search interest is not the same as sales or conversions"""))
+            f"""이벤트가 없었을 때의 검색량은 같은 업종 전체의 검색 흐름({base})을 기준으로 예측했습니다. 이벤트 전 {r['pre_days']}일 동안 {client} 검색량이 업종 흐름과 어떻게 같이 움직였는지 학습한 뒤, 이벤트 기간에도 그 관계가 그대로 이어졌다고 가정한 값입니다. 실제 검색량에서 이 예상치를 뺀 것이 이벤트의 영향입니다.
+
+이벤트 기간은 '{kws}' 검색량이 최고점의 25% 이상으로 올라가 있던 구간으로 잡았습니다(하루짜리 급등이면 최소 {min_days}일). 이 키워드는 기간을 찾는 데만 쓰고 예측에는 넣지 않았습니다. 넣으면 이벤트 효과까지 모델이 설명해 버려서 차이가 사라지기 때문입니다.
+
+모델은 CausalImpact와 같은 구조(추세·요일 패턴·업종 흐름)이고, p값은 예측의 불확실성을 1,000번 시뮬레이션해서 구했습니다. 같은 시기에 신제품 출시나 뉴스가 있었다면 그 영향도 섞여 있을 수 있고, 검색량이 곧 매출을 뜻하지는 않습니다.""",
+            f"""The no-event baseline is predicted from the overall category's search trend ({base}). The model learns how {client_label} searches moved with the category during the {r['pre_days']} days before the event, then assumes that relationship held during the event. Actual searches minus this baseline is the event's effect.
+
+The event window is the stretch where '{kws}' searches stayed above 25% of their peak (at least {min_days} days for one-day spikes). Those terms only define the window — they're kept out of the prediction, because including them would let the model explain away the effect.
+
+The model has the same structure as CausalImpact (trend, day-of-week pattern, category trend), and the p-value comes from 1,000 simulations of the prediction's uncertainty. Product launches or news in the same period can also show up in the difference, and search interest isn't the same as sales."""))
     st.divider()
 
 
 def render():
     cf_area = st.container()  # '이벤트가 없었다면' 반사실 분석 (해당 회사가 고객사/경쟁사일 때만, 맨 위)
-    st.markdown(t("#### Google Trends 검색 관심도 × 캠페인 집행 시점", "#### Search Interest (Google Trends) × Content Uploads"))
+    st.markdown(t("#### 검색량 흐름과 유튜브 업로드", "#### Search Interest & YouTube Uploads"))
     chart_area = st.container()  # 그래프를 먼저 배치하고, 키워드 입력은 그래프 아래에
 
     client, rival = st.session_state.client, st.session_state.competitor
@@ -224,7 +225,7 @@ def render():
         if st.session_state.get("trends_err"):
             st.error(st.session_state.trends_err)
         if not st.session_state.trends:
-            st.info(t("아래에서 키워드와 기간을 확인한 뒤 [Trends 조회]를 누르세요.",
+            st.info(t("아래에서 키워드를 확인하고 [Trends 조회]를 눌러 주세요.",
                       "Check the search terms and date range below, then click [Refresh Trends]."))
             return
         df, meta = st.session_state.trends
@@ -243,29 +244,26 @@ def render():
             plot_df = df.drop(columns=ev_cols).assign(**{ev_label: df[ev_cols].sum(axis=1)})
         fig = build_figure(plot_df, uploads, (kw_own.strip(), kw_rival.strip()), [ev_label] if ev_label else [])
         st.plotly_chart(fig, use_container_width=True)
-        st.caption(t("● 점 = 해당 채널의 YouTube 동영상 업로드 (Shorts 제외) · 점에 마우스를 올리면 영상 제목이 표시됩니다 · 점선 = 이벤트 키워드 합계. "
-                     "업로드일은 채널 목록의 '○일/주/개월 전' 표기로 추정한 날짜라 주·개월 단위는 오차가 있습니다.",
-                     "● Dots = YouTube video uploads from each brand's channel (Shorts excluded) · hover a dot to see the title · dotted line = event keywords combined. "
-                     "Upload dates are estimated from the channel's 'N days/weeks/months ago' labels, so week/month-level dates are approximate."))
+        st.caption(t("Google Trends 검색량(기간 내 최고치 = 100)입니다. 점은 각 브랜드 채널에 올라온 유튜브 영상(Shorts 제외)이고, 마우스를 올리면 제목이 보입니다. "
+                     "점선은 이벤트 키워드를 합친 검색량입니다. 업로드일은 채널 목록의 '3주 전' 같은 표기로 추정해서 몇 주 단위로는 어긋날 수 있습니다.",
+                     "Google Trends search interest (peak in the period = 100). Dots are YouTube videos (excluding Shorts) posted on each brand's channel — hover to see the title. "
+                     "The dotted line is the event keywords combined. Upload dates come from labels like '3 weeks ago', so they can be off by a few weeks."))
 
+    st.caption(t("검색량은 관심이 얼마나 늘고 줄었는지를 보여줄 뿐, 그만큼 팔렸다는 뜻은 아닙니다. 뉴스나 계절 영향도 함께 섞여 있어요.",
+                 "Search interest shows how attention rose and fell — not how much was sold. News and seasonality are mixed in too."))
     geo = meta["geo"]
     meta_df = pd.DataFrame({t("값", "Value"): {
         t("지역", "Region"): t(geo, GEO_EN.get(geo, geo)),
         t("기간", "Period"): meta["timeframe"],
         t("키워드", "Search terms"): ", ".join(meta["keywords"]),
         t("단위", "Granularity"): t(meta["granularity"], GRAN_EN.get(meta["granularity"], meta["granularity"])),
-        t("지수 기준", "Index basis"): t("기간·지역 내 최대 검색량 = 100 기준 상대지수 (절대 검색량 아님, 키워드 간 동일 요청 내에서만 비교 가능)",
-                                       "Relative index where peak search volume in the period/region = 100 (not absolute volume; "
-                                       "comparable only across terms in the same request)"),
+        t("지수 기준", "Index basis"): t("기간·지역 안에서 가장 많이 검색된 날을 100으로 놓은 상대값 (실제 검색 횟수 아님)",
+                                       "Relative value where the busiest day in the period and region = 100 (not raw search counts)"),
         t("출처", "Source"): meta["source"],
         t("수집 시각", "Fetched at"): meta["fetched_at"] + (t(" (캐시)", " (cached)") if meta.get("from_cache") else ""),
     }})
-    st.dataframe(meta_df, width="stretch")
+    with st.expander(t("데이터 기준", "Data details")):
+        st.dataframe(meta_df, width="stretch")
     if meta.get("partial_last"):
         st.caption(t("⚠️ 마지막 구간은 집계가 완료되지 않은 부분 데이터(isPartial)입니다.",
                      "⚠️ The last data point is partial (isPartial) and may still change."))
-    st.warning(t("검색 관심도는 **관심의 상대적 변화**를 나타낼 뿐이며 매출·전환과 동일한 의미가 아닙니다. "
-                 "검색 증가가 곧 구매 증가를 뜻하지 않으며, 다른 이벤트(뉴스·프로모션·계절성)의 영향이 함께 섞여 있습니다.",
-                 "Search interest reflects **relative changes in consumer interest**, not sales or conversions. "
-                 "A rise in searches doesn't necessarily mean more purchases, and it also reflects other factors "
-                 "(news, promotions, seasonality)."))
