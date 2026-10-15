@@ -30,8 +30,9 @@ def _metrics(m: dict) -> dict:
     likes, comments = m.get("likes"), m.get("comments")
     total = (likes or 0) + (comments or 0) if likes is not None or comments is not None else None
     days = None
-    if m.get("published"):
-        days = max(1, (date.today() - pd.Timestamp(m["published"]).date()).days)
+    published = pd.to_datetime(m.get("published"), errors="coerce")  # 날짜가 아니면 NaT → 일평균만 생략
+    if pd.notna(published):
+        days = max(1, (date.today() - published.date()).days)
     followers = m.get("followers")
     return {
         "likes": likes,

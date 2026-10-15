@@ -54,6 +54,7 @@ def connect_all(force: bool = False):
         except Exception as e:  # 예상 못 한 네트워크/파싱 오류
             ss.slots[s["key"]] = {"error": f"{type(e).__name__}: {e}", "fix": t("잠시 후 [연동]을 다시 눌러 재시도하세요.", "Click [Connect] again shortly."), "url": url}
             continue
+        meta["published"] = uc.iso_date(meta.get("published"))  # 예전에 캐시된 잘못된 날짜 값 정리
         same = prev.get("id") == meta["id"]
         meta["campaign_name"] = prev.get("campaign_name") if same else (meta.get("title") or "")[:40]
         meta["start_date"] = prev.get("start_date") if same else meta.get("published")

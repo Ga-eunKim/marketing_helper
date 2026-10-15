@@ -105,6 +105,32 @@ def _abbr_num(s: str | None) -> int | None:
     return int(float(m.group(1).replace(",", "")) * mult)
 
 
+def iso_date(value) -> str | None:
+    """'YYYY-MM-DD'로 시작하는 실제 날짜만 통과 (해외 서버에서 받은 페이지는 형식이 달라 엉뚱한 값이 들어올 수 있음)."""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", str(value or ""))
+    if not m:
+        return None
+    try:
+        return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3))).strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _page_date(page: str) -> str | None:
+    """시청 페이지에서 게시일 찾기 — 지역·언어별로 다른 여러 위치를 차례로 확인."""
+    patterns = [
+        r'"publishDate":\s*(?:\{"simpleText":)?\s*"(\d{4}-\d{2}-\d{2})',
+        r'"uploadDate":\s*(?:\{"simpleText":)?\s*"(\d{4}-\d{2}-\d{2})',
+        r'itemprop="(?:datePublished|uploadDate)"\s+content="(\d{4}-\d{2}-\d{2})',
+        r'"datePublished":\s*"(\d{4}-\d{2}-\d{2})',
+    ]
+    for pat in patterns:
+        m = re.search(pat, page)
+        if m and iso_date(m.group(1)):
+            return iso_date(m.group(1))
+    return None
+
+
 def fetch_youtube(video_id: str) -> dict:
     watch_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
@@ -141,8 +167,7 @@ def fetch_youtube(video_id: str) -> dict:
     keywords = re.findall(r'"([^"]+)"', kw.group(1)) if kw else []
     cinfo = re.search(r'"contextualInfo":\{"runs":\[\{"text":"([^"]+)"', page)
     subs = re.search(r'"subscriberCountText":.{0,200}?"simpleText":"(?:구독자\s*)?([\d.,]+\s*[천만억KM]?)', page)
-    pub = grab("publishDate") or grab("uploadDate")
-    published = pub[:10] if pub else None
+    published = _page_date(page)
 
     return {
         "platform": "YouTube",
