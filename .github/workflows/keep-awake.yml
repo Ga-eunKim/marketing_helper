@@ -1,0 +1,35 @@
+# Streamlit Cloud 앱이 잠들지 않게 4시간마다 접속 (2026-10-25까지만 동작)
+name: Keep Streamlit app awake
+
+on:
+  schedule:
+    - cron: "17 */4 * * *"   # 4시간마다 (UTC)
+  workflow_dispatch:          # Actions 탭에서 수동 실행도 가능
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Stop after end date
+        id: window
+        run: |
+          if [ "$(date -u +%Y-%m-%d)" \> "2026-10-25" ]; then
+            echo "기간 종료 (2026-10-25) — 건너뜀"; echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.window.outputs.active == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.window.outputs.active == 'true'
+        with:
+          python-version: "3.11"
+      - name: Visit app
+        if: steps.window.outputs.active == 'true'
+        env:
+          APP_URL: https://gaeunkim.streamlit.app/
+        run: |
+          pip install -q playwright
+          python -m playwright install --with-deps chromium
+          python scripts/keep_awake.py
