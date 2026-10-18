@@ -201,7 +201,7 @@ def _caption_title(caption: str | None) -> str:
 def _instagram_via_instaloader(shortcode: str) -> dict:
     import instaloader
 
-    L = instaloader.Instaloader(quiet=True, max_connection_attempts=1)
+    L = instaloader.Instaloader(quiet=True, max_connection_attempts=1, request_timeout=15)
     p = instaloader.Post.from_shortcode(L.context, shortcode)
     node = getattr(p, "_node", {}) or {}
     views = node.get("video_play_count") or node.get("video_view_count") or node.get("view_count")
@@ -262,7 +262,7 @@ def _instagram_followers(username: str | None) -> int | None:
     try:
         import instaloader
 
-        L = instaloader.Instaloader(quiet=True, max_connection_attempts=1)
+        L = instaloader.Instaloader(quiet=True, max_connection_attempts=1, request_timeout=15)
         return instaloader.Profile.from_username(L.context, username).followers
     except Exception:
         pass

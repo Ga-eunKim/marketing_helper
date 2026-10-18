@@ -53,9 +53,13 @@ def _collect(app_id: str, since: date, lang: str, country: str, max_pages: int =
 
 
 def daily_reviews(app_id: str, since: date, lang: str = "ko", country: str = "kr", refresh: bool = False) -> pd.DataFrame:
-    """일별 신규 리뷰 수(reviews), 평균 별점(rating), 7일 이동평균(reviews_ma7). 하루 단위 캐시, 실패 시 이전 값."""
+    """일별 신규 리뷰 수(reviews), 평균 별점(rating), 7일 이동평균(reviews_ma7).
+
+    저장된 리뷰는 만료되지 않는다 — 수집에 언어별로 수 분이 걸려 화면에서 다시 받으면 페이지가 멈추기 때문.
+    새로 받기는 refresh=True(scripts/warm_cache.py)로만 한다.
+    """
     return cache.cached("store", (app_id, since.isoformat(), lang, country),
-                        lambda: _collect(app_id, since, lang, country), cache.DAY, refresh)
+                        lambda: _collect(app_id, since, lang, country), None, refresh)
 
 
 # 글로벌 집계용 언어·국가 (리뷰는 언어 기준으로 나뉨 — 국가 코드는 스토어 지역 표기용)
