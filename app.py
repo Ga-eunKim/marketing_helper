@@ -60,7 +60,7 @@ def sidebar():
 def top_bar():
     with st.container(key="topbar"):
         c0, c1, c2 = st.columns([5, 2, 1])
-        c0.markdown(t("### 📊 구글 광고 캠페인 효과 측정·비교", "### 📊 Google Ads Campaign Effectiveness & Benchmarking"))
+        c0.markdown(t("### 📊 광고 캠페인 효과 측정·비교", "### 📊 Ad Campaign Effectiveness & Benchmarking"))
         if page_type(ss.client) != "game":  # 게임 페이지는 캠페인 기준 분석 기간을 자체로 사용
             period = c1.date_input(t("분석 기간", "Date range"), ss.period, key="period_sel")
             if isinstance(period, (tuple, list)) and len(period) == 2:
